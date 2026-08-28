@@ -1,0 +1,5 @@
+.DS_Store
+node_modules/
+.expo/
+app/node_modules/
+app/.expo/

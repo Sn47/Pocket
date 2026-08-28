@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; background: #101013; font-family: -apple-system, "SF Pro Text", system-ui, sans-serif; }
+    a { color: #98989F; } a:hover { color: #F5F5F7; }
+    ::-webkit-scrollbar { width: 0; height: 0; }
+    @keyframes sheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes toastIn { from { transform: translateY(14px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    input { outline: none; }
+  </style>
+</helmet>
+<div style="min-height:100vh; display:flex; align-items:flex-start; justify-content:center; padding:40px; box-sizing:border-box">
+  <div>
+    <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="430px,902px">
+      <div style="position:relative; height:100%; display:flex; flex-direction:column; background:#000; font-family:-apple-system,'SF Pro Text',system-ui,sans-serif; user-select:none">
+        <div style="flex:1; overflow-y:auto; padding:64px 20px 20px">
+
+          <!-- ═══════════ LOG ═══════════ -->
+          <sc-if value="{{ isLog }}" hint-placeholder-val="{{ true }}">
+            <div data-screen-label="Log" style="display:flex; flex-direction:column; min-height:100%">
+              <div style="display:flex; justify-content:space-between; align-items:center">
+                <span style="color:#5F5F67; font-size:10px; font-weight:700; letter-spacing:2px">POCKET</span>
+                <div style="display:flex; gap:14px">
+                  <sc-for list="{{ accs }}" as="a" hint-placeholder-count="2">
+                    <span onClick="{{ a.onTap }}" style="color:{{ a.c }}; font-size:11px; font-weight:700; letter-spacing:1px; cursor:pointer; padding:6px 0">{{ a.name }}</span>
+                  </sc-for>
+                  <span onClick="{{ openRecent }}" style="color:#5F5F67; font-size:15px; cursor:pointer; padding:6px 0 6px 4px" style-active="opacity:0.6">◷</span>
+                </div>
+              </div>
+              <div style="margin-top:26px; text-align:center; font-variant-numeric:tabular-nums; line-height:1; transition:color .3s">
+                <div style="color:#3A3A40; font-size:9px; font-weight:700; letter-spacing:2.5px; margin-bottom:10px">BALANCE</div>
+                <span style="color:#5F5F67; font-size:18px; font-weight:600">{{ cur }}</span><span style="font-size:52px; font-weight:700; letter-spacing:-1.5px; color:{{ balColor }}; transition:color .25s">{{ balInt }}</span><span style="color:#5F5F67; font-size:24px; font-weight:600">.{{ balDec }}</span>
+              </div>
+              <div style="display:flex; align-items:center; justify-content:center; gap:12px; margin-top:auto; padding-top:24px; height:56px">
+                <span style="font-variant-numeric:tabular-nums"><span style="color:#5F5F67; font-size:21px; font-weight:600">{{ cur }}</span><span style="color:{{ amtColor }}; font-size:48px; font-weight:700; letter-spacing:-1px">{{ amtInt }}</span><span style="color:#5F5F67; font-size:26px; font-weight:600">.{{ amtDec }}</span></span>
+                <sc-if value="{{ hasAmt }}" hint-placeholder-val="{{ false }}">
+                  <span onClick="{{ doInvest }}" style="color:#BF5AF2; border:1.5px solid rgba(191,90,242,0.5); border-radius:999px; width:40px; height:40px; display:flex; align-items:center; justify-content:center; font-size:19px; cursor:pointer; transition:transform .08s" style-active="background:#BF5AF2; color:#000; transform:scale(0.94)">↗</span>
+                </sc-if>
+              </div>
+
+              <sc-if value="{{ quickVisible }}" hint-placeholder-val="{{ true }}">
+                <div style="display:flex; justify-content:center; gap:8px; margin-top:6px">
+                  <sc-for list="{{ quick }}" as="q" hint-placeholder-count="4">
+                    <span onClick="{{ q.onTap }}" style="color:#98989F; font-size:13px; font-weight:600; font-variant-numeric:tabular-nums; padding:9px 14px; border-radius:999px; background:rgba(255,255,255,0.06); cursor:pointer; min-width:34px; text-align:center; transition:transform .08s" style-active="background:rgba(255,255,255,0.14); transform:scale(0.94)">{{ q.label }}</span>
+                  </sc-for>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ hasAmt }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex; gap:6px; margin-top:14px; overflow-x:auto; padding:3px 2px; align-items:center">
+                  <sc-for list="{{ emojiChips }}" as="c" hint-placeholder-count="12">
+                    <sc-if value="{{ c.div }}" hint-placeholder-val="{{ false }}">
+                      <span style="width:1px; height:22px; background:rgba(255,255,255,0.12); flex-shrink:0"></span>
+                    </sc-if>
+                    <sc-if value="{{ c.e }}" hint-placeholder-val="{{ true }}">
+                      <span onClick="{{ c.onTap }}" onPointerDown="{{ c.onDown }}" onPointerUp="{{ c.onUp }}" onPointerLeave="{{ c.onUp }}" style="width:44px; height:56px; flex-shrink:0; display:flex; flex-direction:column; gap:3px; align-items:center; justify-content:center; border-radius:14px; cursor:pointer; background:{{ c.bg }}; box-shadow:{{ c.ring }}; transition:transform .08s" style-active="transform:scale(0.9)">
+                        <span style="font-size:{{ c.fs }}; color:#98989F; font-weight:700; line-height:1">{{ c.e }}</span>
+                        <sc-if value="{{ c.hasBar }}" hint-placeholder-val="{{ false }}">
+                          <span style="width:20px; height:2px; border-radius:1px; background:rgba(255,255,255,0.12); overflow:hidden; display:block"><span style="display:block; width:{{ c.barPct }}; height:2px; background:{{ c.barC }}"></span></span>
+                        </sc-if>
+                        <sc-if value="{{ c.showLeft }}" hint-placeholder-val="{{ false }}">
+                          <span style="font-size:8.5px; color:{{ c.leftC }}; font-weight:700; font-variant-numeric:tabular-nums; line-height:1">{{ c.leftNum }}</span>
+                        </sc-if>
+                      </span>
+                    </sc-if>
+                  </sc-for>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ noteVisible }}" hint-placeholder-val="{{ false }}">
+                <input value="{{ noteVal }}" onChange="{{ onNote }}" placeholder="note" style="width:100%; box-sizing:border-box; background:none; border:none; border-bottom:1px solid rgba(255,255,255,0.08); color:#F5F5F7; font-size:14px; text-align:center; padding:9px 0; margin-top:6px; font-family:inherit"></input>
+              </sc-if>
+
+              <div style="display:grid; grid-template-columns:1fr 1fr 1fr; margin-top:6px">
+                <sc-for list="{{ keys }}" as="k" hint-placeholder-count="12">
+                  <div onClick="{{ k.onTap }}" style="height:52px; display:flex; align-items:center; justify-content:center; color:{{ k.color }}; font-size:{{ k.size }}; font-weight:500; font-variant-numeric:tabular-nums; border-radius:16px; cursor:pointer; transition:transform .06s" style-active="background:rgba(255,255,255,0.1); transform:scale(0.94)">{{ k.label }}</div>
+                </sc-for>
+              </div>
+
+              <div style="display:flex; gap:10px; margin-top:10px; opacity:{{ actionOpacity }}; transition:opacity .2s">
+                <div onClick="{{ saveSpent }}" style="flex:1; height:68px; border-radius:22px; background:rgba(255,69,58,0.15); color:#FF453A; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:transform .08s, background .08s, color .08s" style-active="background:#FF453A; color:#000; transform:scale(0.97)"><span style="font-size:32px; font-weight:700; color:inherit">−</span></div>
+                <div onClick="{{ openTransfer }}" style="width:64px; height:68px; border-radius:22px; background:rgba(255,255,255,0.06); color:#98989F; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:transform .08s" style-active="background:rgba(255,255,255,0.16); transform:scale(0.95)"><span style="font-size:22px; color:inherit">⇆</span></div>
+                <div onClick="{{ saveGot }}" style="flex:1; height:68px; border-radius:22px; background:rgba(48,209,88,0.15); color:#30D158; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:transform .08s, background .08s, color .08s" style-active="background:#30D158; color:#000; transform:scale(0.97)"><span style="font-size:32px; font-weight:700; color:inherit">＋</span></div>
+              </div>
+
+            </div>
+          </sc-if>
+
+          <!-- ═══════════ PLAN ═══════════ -->
+          <sc-if value="{{ isPlan }}" hint-placeholder-val="{{ false }}">
+            <div data-screen-label="Plan">
+              <span style="color:#5F5F67; font-size:10px; font-weight:700; letter-spacing:2px">PLAN</span>
+              <sc-for list="{{ dueRows }}" as="d" hint-placeholder-count="1">
+                <div style="display:flex; align-items:center; gap:12px; padding:14px 0; border-bottom:1px solid rgba(255,255,255,0.08); margin-top:6px">
+                  <span style="font-size:18px">⏰</span>
+                  <span style="flex:1; color:#F5F5F7; font-size:14.5px; font-weight:600">{{ d.name }}</span>
+                  <span style="color:{{ d.color }}; font-size:14px; font-weight:700; font-variant-numeric:tabular-nums">{{ d.amt }}</span>
+                  <span onClick="{{ d.onAdd }}" style="width:44px; height:44px; border-radius:14px; background:rgba(48,209,88,0.15); color:#30D158; display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:700; cursor:pointer; transition:transform .08s" style-active="background:#30D158; color:#000; transform:scale(0.92)">✓</span>
+                  <span onClick="{{ d.onSkip }}" style="width:44px; height:44px; border-radius:14px; background:rgba(255,255,255,0.06); color:#5F5F67; display:flex; align-items:center; justify-content:center; font-size:16px; cursor:pointer" style-active="opacity:0.6">✕</span>
+                </div>
+              </sc-for>
+              <div style="color:#5F5F67; font-size:10px; font-weight:700; letter-spacing:1.8px; margin-top:26px">BUDGETS · {{ monthName }}</div>
+              <sc-for list="{{ budgetRows }}" as="b" hint-placeholder-count="8">
+                <div onClick="{{ b.onTap }}" style="display:flex; align-items:center; gap:12px; padding:12px 0; cursor:pointer" style-active="opacity:0.55">
+                  <span style="font-size:20px; width:28px; text-align:center; color:#98989F">{{ b.emoji }}</span>
+                  <div style="flex:1; height:3px; border-radius:2px; background:rgba(255,255,255,0.08); overflow:hidden"><div style="width:{{ b.pct }}; height:3px; border-radius:2px; background:{{ b.barColor }}; transition:width .4s"></div></div>
+                  <span style="color:#98989F; font-size:12.5px; font-variant-numeric:tabular-nums; min-width:96px; text-align:right">{{ b.nums }}</span>
+                  <span style="font-size:13px; width:18px; text-align:center">{{ b.flag }}</span>
+                </div>
+              </sc-for>
+              <div style="display:flex; justify-content:space-between; margin-top:14px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.08)">
+                <span style="color:#5F5F67; font-size:10px; font-weight:700; letter-spacing:1.5px">LEFT THIS MONTH</span>
+                <span style="color:{{ leftColor }}; font-size:13px; font-weight:700; font-variant-numeric:tabular-nums">{{ leftAmt }}</span>
+              </div>
+              <div style="color:#5F5F67; font-size:10px; font-weight:700; letter-spacing:1.8px; margin-top:26px">RECURRING</div>
+              <sc-for list="{{ recRows }}" as="r" hint-placeholder-count="4">
+                <div onClick="{{ r.onTap }}" style="display:flex; align-items:center; gap:12px; padding:12px 0; cursor:pointer" style-active="opacity:0.55">
+                  <span style="font-size:16px; width:28px; text-align:center; color:#5F5F67">🔁</span>
+                  <span style="flex:1; color:#F5F5F7; font-size:14px; font-weight:500">{{ r.name }}</span>
+                  <span style="color:#5F5F67; font-size:11px; font-variant-numeric:tabular-nums">{{ r.when }}</span>
+                  <span style="color:{{ r.color }}; font-size:13.5px; font-weight:600; font-variant-numeric:tabular-nums; min-width:86px; text-align:right">{{ r.amt }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+
+          <!-- ═══════════ GROW ═══════════ -->
+          <sc-if value="{{ isGrow }}" hint-placeholder-val="{{ false }}">
+            <div data-screen-label="Grow">
+              <span style="color:#5F5F67; font-size:10px; font-weight:700; letter-spacing:2px">GROW</span>
+              <div style="color:#5F5F67; font-size:10px; font-weight:700; letter-spacing:1.8px; margin-top:20px">◎ GOALS</div>
+              <sc-for list="{{ goalRows }}" as="g" hint-placeholder-count="2">
+                <div onClick="{{ g.onTap }}" style="padding:13px 0; cursor:pointer" style-active="opacity:0.55">
+                  <div style="display:flex; align-items:center; gap:12px">
+                    <span style="flex:1; color:#F5F5F7; font-size:14.5px; font-weight:600">{{ g.name }}</span>
+                    <span style="color:#98989F; font-size:12.5px; font-variant-numeric:tabular-nums">{{ g.nums }}</span>
+                    <span style="font-size:13px; color:#30D158; width:16px; text-align:center">{{ g.flag }}</span>
+                  </div>
+                  <div style="height:3px; border-radius:2px; background:rgba(255,255,255,0.08); overflow:hidden; margin-top:9px"><div style="width:{{ g.pct }}; height:3px; background:#30D158; border-radius:2px; transition:width .4s"></div></div>
+                </div>
+              </sc-for>
+              <div onClick="{{ addGoal }}" style="color:#5F5F67; font-size:13px; font-weight:600; padding:12px 0; cursor:pointer" style-active="opacity:0.6">＋ goal</div>
+              <div style="color:#5F5F67; font-size:10px; font-weight:700; letter-spacing:1.8px; margin-top:22px">DEBT</div>
+              <sc-for list="{{ debtRows }}" as="d" hint-placeholder-count="1">
+                <div onClick="{{ d.onTap }}" style="padding:13px 0; cursor:pointer" style-active="opacity:0.55">
+                  <div style="display:flex; align-items:center; gap:12px">
+                    <span style="flex:1; color:#F5F5F7; font-size:14.5px; font-weight:600">{{ d.name }}</span>
+                    <span style="color:#5F5F67; font-size:11px; font-variant-numeric:tabular-nums">{{ d.eta }}</span>
+                    <span style="color:#FF453A; font-size:12.5px; font-weight:600; font-variant-numeric:tabular-nums">{{ d.nums }}</span>
+                  </div>
+                  <div style="height:3px; border-radius:2px; background:rgba(255,255,255,0.08); overflow:hidden; margin-top:9px"><div style="width:{{ d.pct }}; height:3px; background:#FF453A; border-radius:2px; transition:width .4s"></div></div>
+                </div>
+              </sc-for>
+              <div onClick="{{ addDebt }}" style="color:#5F5F67; font-size:13px; font-weight:600; padding:12px 0; cursor:pointer" style-active="opacity:0.6">＋ debt</div>
+              <div style="color:#5F5F67; font-size:10px; font-weight:700; letter-spacing:1.8px; margin-top:22px">↗ INVESTED</div>
+              <sc-for list="{{ holdRows }}" as="h" hint-placeholder-count="2">
+                <div onClick="{{ h.onTap }}" style="display:flex; align-items:center; gap:12px; padding:13px 0; cursor:pointer" style-active="opacity:0.55">
+                  <span style="font-size:15px; width:28px; text-align:center; color:#BF5AF2">↗</span>
+                  <span style="flex:1; color:#F5F5F7; font-size:14.5px; font-weight:600">{{ h.name }}</span>
+                  <span style="color:#F5F5F7; font-size:13.5px; font-weight:600; font-variant-numeric:tabular-nums">{{ h.val }}</span>
+                  <span style="color:{{ h.gainColor }}; font-size:11.5px; font-weight:700; font-variant-numeric:tabular-nums; min-width:48px; text-align:right">{{ h.gain }}</span>
+                </div>
+              </sc-for>
+              <div style="display:flex; justify-content:space-between; margin-top:14px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.08)">
+                <span style="color:#5F5F67; font-size:10px; font-weight:700; letter-spacing:1.5px">NET WORTH</span>
+                <span style="color:#F5F5F7; font-size:13px; font-weight:700; font-variant-numeric:tabular-nums">{{ netWorth }}</span>
+              </div>
+            </div>
+          </sc-if>
+
+          <!-- ═══════════ MORE ═══════════ -->
+          <sc-if value="{{ isMore }}" hint-placeholder-val="{{ false }}">
+            <div data-screen-label="More">
+              <span style="color:#5F5F67; font-size:10px; font-weight:700; letter-spacing:2px">MORE</span>
+              <div style="margin-top:8px">
+                <sc-for list="{{ glanceRows }}" as="g" hint-placeholder-count="5">
+                  <div onClick="{{ g.onTap }}" style="display:flex; align-items:center; gap:12px; padding:14px 0; border-bottom:1px solid rgba(255,255,255,0.06); cursor:pointer" style-active="opacity:0.55">
+                    <span style="font-size:16px; width:28px; text-align:center; color:#98989F">{{ g.glyph }}</span>
+                    <span style="flex:1; color:#F5F5F7; font-size:14px; font-weight:500">{{ g.name }}</span>
+                    <span style="width:64px; height:18px; display:flex; align-items:center">{{ g.spark }}</span>
+                    <span style="color:{{ g.color }}; font-size:13.5px; font-weight:600; font-variant-numeric:tabular-nums; min-width:82px; text-align:right">{{ g.val }}</span>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="color:#5F5F67; font-size:10px; font-weight:700; letter-spacing:1.8px; margin-top:26px">SETTINGS</div>
+              <div onClick="{{ toggleSweep }}" style="display:flex; align-items:center; gap:12px; padding:14px 0; border-bottom:1px solid rgba(255,255,255,0.06); cursor:pointer" style-active="opacity:0.55">
+                <span style="font-size:15px; width:28px; text-align:center; color:#98989F">◎</span>
+                <span style="flex:1; color:#F5F5F7; font-size:14px; font-weight:500">Round-up sweeps</span>
+                <span style="color:#5F5F67; font-size:11px">spare change → nearest goal</span>
+                <span style="color:{{ sweepC }}; font-size:12px; font-weight:700; min-width:26px; text-align:right">{{ sweepState }}</span>
+              </div>
+              <div onClick="{{ toggleBuzz }}" style="display:flex; align-items:center; gap:12px; padding:14px 0; border-bottom:1px solid rgba(255,255,255,0.06); cursor:pointer" style-active="opacity:0.55">
+                <span style="font-size:15px; width:28px; text-align:center; color:#98989F">〰</span>
+                <span style="flex:1; color:#F5F5F7; font-size:14px; font-weight:500">Haptics</span>
+                <span style="color:{{ buzzC }}; font-size:12px; font-weight:700; min-width:26px; text-align:right">{{ buzzState }}</span>
+              </div>
+              <div onClick="{{ cycleCur }}" style="display:flex; align-items:center; gap:12px; padding:14px 0; border-bottom:1px solid rgba(255,255,255,0.06); cursor:pointer" style-active="opacity:0.55">
+                <span style="font-size:14px; width:28px; text-align:center; color:#98989F; font-weight:700">{{ cur }}</span>
+                <span style="flex:1; color:#F5F5F7; font-size:14px; font-weight:500">Currency</span>
+                <span style="color:#5F5F67; font-size:12px">tap to change</span>
+              </div>
+              <div onClick="{{ exportJson }}" style="display:flex; align-items:center; gap:12px; padding:14px 0; border-bottom:1px solid rgba(255,255,255,0.06); cursor:pointer" style-active="opacity:0.55">
+                <span style="font-size:15px; width:28px; text-align:center; color:#98989F">⇪</span>
+                <span style="flex:1; color:#F5F5F7; font-size:14px; font-weight:500">Backup</span>
+                <span style="color:#5F5F67; font-size:12px">JSON</span>
+              </div>
+              <div onClick="{{ exportCsv }}" style="display:flex; align-items:center; gap:12px; padding:14px 0; border-bottom:1px solid rgba(255,255,255,0.06); cursor:pointer" style-active="opacity:0.55">
+                <span style="font-size:15px; width:28px; text-align:center; color:#98989F">⇪</span>
+                <span style="flex:1; color:#F5F5F7; font-size:14px; font-weight:500">Transactions</span>
+                <span style="color:#5F5F67; font-size:12px">CSV</span>
+              </div>
+              <div onClick="{{ wipeAsk }}" style="display:flex; align-items:center; gap:12px; padding:14px 0; cursor:pointer" style-active="opacity:0.55">
+                <span style="font-size:15px; width:28px; text-align:center; color:#FF453A">⌫</span>
+                <span style="flex:1; color:#FF453A; font-size:14px; font-weight:500">Erase everything</span>
+              </div>
+              <div style="color:#3A3A40; font-size:11px; text-align:center; margin-top:24px; line-height:17px">All data stays on this phone.</div>
+            </div>
+          </sc-if>
+        </div>
+
+        <!-- ═══════════ NAV ═══════════ -->
+        <div style="display:flex; border-top:1px solid rgba(255,255,255,0.07); background:#000; padding:6px 0 36px">
+          <div onClick="{{ goLog }}" style="flex:1; height:44px; display:flex; align-items:center; justify-content:center; cursor:pointer"><span style="color:{{ logC }}; font-size:20px; transition:color .15s">＋</span></div>
+          <div onClick="{{ goPlan }}" style="flex:1; height:44px; display:flex; align-items:center; justify-content:center; cursor:pointer; position:relative"><span style="color:{{ planC }}; font-size:18px; transition:color .15s">▤</span><sc-if value="{{ dueDot }}" hint-placeholder-val="{{ false }}"><span style="position:absolute; top:8px; margin-left:26px; width:6px; height:6px; border-radius:3px; background:#FF453A"></span></sc-if></div>
+          <div onClick="{{ goGrow }}" style="flex:1; height:44px; display:flex; align-items:center; justify-content:center; cursor:pointer"><span style="color:{{ growC }}; font-size:18px; transition:color .15s">◎</span></div>
+          <div onClick="{{ goMore }}" style="flex:1; height:44px; display:flex; align-items:center; justify-content:center; cursor:pointer"><span style="color:{{ moreC }}; font-size:18px; transition:color .15s">≡</span></div>
+        </div>
+
+        <!-- ═══════════ reveal pill ═══════════ -->
+        <sc-if value="{{ reveal }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute; top:70px; left:0; right:0; display:flex; justify-content:center; z-index:60; pointer-events:none">
+            <span style="background:#1C1C21; color:#F5F5F7; font-size:12px; font-weight:600; padding:8px 16px; border-radius:999px; border:1px solid rgba(255,255,255,0.1); animation:toastIn .15s ease-out">{{ reveal }}</span>
+          </div>
+        </sc-if>
+
+        <!-- ═══════════ toast / undo pill ═══════════ -->
+        <sc-if value="{{ toastVisible }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute; bottom:96px; left:0; right:0; display:flex; justify-content:center; z-index:70">
+            <div onClick="{{ undo }}" style="display:flex; align-items:center; gap:14px; background:#1C1C21; border:1px solid rgba(255,255,255,0.1); border-radius:999px; padding:12px 20px; max-width:86%; cursor:pointer; animation:toastIn .18s ease-out">
+              <span style="color:#F5F5F7; font-size:13px; font-weight:600; font-variant-numeric:tabular-nums">{{ toastMsg }}</span>
+              <sc-if value="{{ toastUndoable }}" hint-placeholder-val="{{ false }}">
+                <span style="color:#30D158; font-size:11px; font-weight:800; letter-spacing:1.5px">UNDO</span>
+              </sc-if>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- ═══════════ bottom sheet ═══════════ -->
+        <sc-if value="{{ sheetOpen }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute; inset:0; z-index:80">
+            <div onClick="{{ closeSheet }}" style="position:absolute; inset:0; background:rgba(0,0,0,0.65); animation:fadeIn .2s"></div>
+            <div style="position:absolute; left:0; right:0; bottom:0; background:#141418; border-radius:26px 26px 0 0; padding:8px 20px 44px; max-height:88%; overflow-y:auto; animation:sheetUp .26s cubic-bezier(0.32,0.72,0,1)">
+              <div style="width:36px; height:4px; border-radius:2px; background:rgba(255,255,255,0.12); margin:0 auto 14px"></div>
+              <div style="display:flex; align-items:baseline; justify-content:space-between">
+                <span style="color:#F5F5F7; font-size:16px; font-weight:700; letter-spacing:-0.2px">{{ sheetTitle }}</span>
+                <span style="color:#5F5F67; font-size:11px; font-variant-numeric:tabular-nums">{{ sheetSub }}</span>
+              </div>
+
+              <sc-if value="{{ shName }}" hint-placeholder-val="{{ false }}">
+                <input value="{{ sNameVal }}" onChange="{{ onSName }}" placeholder="name" style="width:100%; box-sizing:border-box; background:none; border:none; border-bottom:1px solid rgba(255,255,255,0.1); color:#F5F5F7; font-size:15px; padding:10px 0; margin-top:8px; font-family:inherit"></input>
+              </sc-if>
+
+              <sc-if value="{{ shEdit }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex; gap:6px; margin-top:12px; overflow-x:auto; padding:3px 2px">
+                  <sc-for list="{{ editChips }}" as="c" hint-placeholder-count="8">
+                    <span onClick="{{ c.onTap }}" style="width:42px; height:42px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:{{ c.fs }}; border-radius:13px; cursor:pointer; background:{{ c.bg }}; box-shadow:{{ c.ring }}; color:#98989F; font-weight:700" style-active="transform:scale(0.9)">{{ c.e }}</span>
+                  </sc-for>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ shTransfer }}" hint-placeholder-val="{{ false }}">
+                <div style="color:#5F5F67; font-size:10px; font-weight:700; letter-spacing:1.5px; margin-top:14px">FROM {{ trFromName }} — TAP DESTINATION TO SEND</div>
+                <div style="display:flex; gap:8px; margin-top:10px">
+                  <sc-for list="{{ trDests }}" as="a" hint-placeholder-count="1">
+                    <span onClick="{{ a.onTap }}" style="flex:1; height:48px; display:flex; align-items:center; justify-content:center; border-radius:14px; background:rgba(255,255,255,0.06); color:#F5F5F7; font-size:14px; font-weight:600; cursor:pointer" style-active="background:#F5F5F7; color:#000">{{ a.name }}</span>
+                  </sc-for>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ shChart }}" hint-placeholder-val="{{ false }}">
+                <div style="margin-top:16px">{{ chartEl }}</div>
+                <sc-for list="{{ chartLegend }}" as="l" hint-placeholder-count="0">
+                  <div style="display:flex; align-items:center; gap:10px; padding:7px 0">
+                    <span style="font-size:15px; width:24px; text-align:center">{{ l.emoji }}</span>
+                    <span style="flex:1; color:#98989F; font-size:12.5px">{{ l.name }}</span>
+                    <div style="width:80px; height:3px; border-radius:2px; background:rgba(255,255,255,0.08); overflow:hidden"><div style="width:{{ l.pct }}; height:3px; background:{{ l.c }}"></div></div>
+                    <span style="color:#F5F5F7; font-size:12px; font-weight:600; font-variant-numeric:tabular-nums; min-width:72px; text-align:right">{{ l.val }}</span>
+                  </div>
+                </sc-for>
+              </sc-if>
+
+              <sc-if value="{{ shRecent }}" hint-placeholder-val="{{ false }}">
+                <div style="margin-top:4px">
+                  <sc-for list="{{ recent }}" as="r" hint-placeholder-count="8">
+                    <sc-if value="{{ r.day }}" hint-placeholder-val="{{ false }}">
+                      <div style="color:#5F5F67; font-size:10px; font-weight:700; letter-spacing:1.8px; text-transform:uppercase; margin-top:16px; margin-bottom:2px">{{ r.day }}</div>
+                    </sc-if>
+                    <sc-if value="{{ r.emoji }}" hint-placeholder-val="{{ true }}">
+                      <div onClick="{{ r.onTap }}" onPointerDown="{{ r.onDown }}" onPointerUp="{{ r.onUp }}" onPointerLeave="{{ r.onUp }}" style="display:flex; align-items:center; gap:12px; padding:11px 0; cursor:pointer" style-active="opacity:0.55">
+                        <span style="font-size:20px; width:28px; text-align:center; color:#98989F">{{ r.emoji }}</span>
+                        <span style="flex:1; color:#5F5F67; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{{ r.sub }}</span>
+                        <span style="font-size:14.5px; font-weight:600; font-variant-numeric:tabular-nums; color:{{ r.color }}">{{ r.amt }}</span>
+                      </div>
+                    </sc-if>
+                  </sc-for>
+                  <div style="color:#3A3A40; font-size:11px; text-align:center; margin-top:12px">tap to edit · hold to delete</div>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ shRec }}" hint-placeholder-val="{{ false }}">
+                <div style="color:#98989F; font-size:13px; margin-top:12px; font-variant-numeric:tabular-nums">{{ recInfo }}</div>
+                <div style="display:flex; gap:10px; margin-top:18px">
+                  <span onClick="{{ recAdd }}" style="flex:1; height:52px; display:flex; align-items:center; justify-content:center; border-radius:16px; background:rgba(48,209,88,0.15); color:#30D158; font-size:15px; font-weight:700; cursor:pointer" style-active="background:#30D158; color:#000">✓ log now</span>
+                  <span onClick="{{ recSkip }}" style="flex:1; height:52px; display:flex; align-items:center; justify-content:center; border-radius:16px; background:rgba(255,255,255,0.06); color:#98989F; font-size:15px; font-weight:600; cursor:pointer" style-active="opacity:0.6">skip once</span>
+                  <span onClick="{{ recDel }}" style="width:56px; height:52px; display:flex; align-items:center; justify-content:center; border-radius:16px; background:rgba(255,69,58,0.15); color:#FF453A; font-size:17px; cursor:pointer" style-active="background:#FF453A; color:#000">⌫</span>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ shPad }}" hint-placeholder-val="{{ false }}">
+                <div style="text-align:center; margin:14px 0 4px; font-variant-numeric:tabular-nums"><span style="color:#5F5F67; font-size:17px; font-weight:600">{{ cur }}</span><span style="color:{{ sAmtColor }}; font-size:38px; font-weight:700; letter-spacing:-1px">{{ sAmtInt }}</span><span style="color:#5F5F67; font-size:21px; font-weight:600">.{{ sAmtDec }}</span></div>
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr">
+                  <sc-for list="{{ skeys }}" as="k" hint-placeholder-count="12">
+                    <div onClick="{{ k.onTap }}" style="height:46px; display:flex; align-items:center; justify-content:center; color:{{ k.color }}; font-size:{{ k.size }}; font-weight:500; font-variant-numeric:tabular-nums; border-radius:14px; cursor:pointer" style-active="background:rgba(255,255,255,0.1); transform:scale(0.94)">{{ k.label }}</div>
+                  </sc-for>
+                </div>
+                <div style="display:flex; gap:10px; margin-top:12px">
+                  <sc-for list="{{ sheetActions }}" as="a" hint-placeholder-count="1">
+                    <span onClick="{{ a.onTap }}" style="flex:{{ a.flex }}; height:54px; display:flex; align-items:center; justify-content:center; border-radius:16px; background:{{ a.bg }}; color:{{ a.color }}; font-size:16px; font-weight:700; cursor:pointer; transition:transform .08s" style-active="transform:scale(0.97); opacity:0.8">{{ a.label }}</span>
+                  </sc-for>
+                </div>
+              </sc-if>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- ═══════════ wipe confirm (the only confirm in the app) ═══════════ -->
+        <sc-if value="{{ confirmWipe }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute; inset:0; z-index:90; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.7); animation:fadeIn .15s">
+            <div style="background:#1C1C21; border-radius:22px; padding:24px; width:260px; text-align:center">
+              <div style="color:#F5F5F7; font-size:15px; font-weight:700">Erase everything?</div>
+              <div style="color:#98989F; font-size:12px; margin-top:6px; line-height:17px">Every entry, goal and debt. This is the only thing Pocket ever asks twice about.</div>
+              <div style="display:flex; gap:8px; margin-top:18px">
+                <span onClick="{{ wipeNo }}" style="flex:1; height:46px; display:flex; align-items:center; justify-content:center; border-radius:14px; background:rgba(255,255,255,0.08); color:#F5F5F7; font-size:14px; font-weight:600; cursor:pointer">Keep</span>
+                <span onClick="{{ wipeYes }}" style="flex:1; height:46px; display:flex; align-items:center; justify-content:center; border-radius:14px; background:rgba(255,69,58,0.15); color:#FF453A; font-size:14px; font-weight:700; cursor:pointer" style-active="background:#FF453A; color:#000">Erase</span>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+    </x-import>
+    <div style="color:#5F5F67; font-size:12px; font-weight:600; letter-spacing:1px; text-align:center; margin-top:14px">POCKET V2 — MOST MINIMAL · type an amount, everything else appears · ◷ = history</div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;: {&quot;width&quot;: 520, &quot;height&quot;: 990}, &quot;showNote&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;Log screen&quot;}, &quot;showQuickAmounts&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;Log screen&quot;}}">
+class Component extends DCLogic {
+  SP = [['🍔','Food'],['🚕','Travel'],['🛒','Groceries'],['💡','Bills'],['🛍','Shopping'],['🎮','Fun'],['💊','Health'],['✱','Other']];
+  GT = [['💼','Salary'],['🧾','Freelance'],['🎁','Gift'],['↩','Refund'],['✱','Other']];
+  GRAYS = ['#F5F5F7','#B9B9C0','#8E8E93','#6C6C72','#515157','#3A3A40','#2A2A2E'];
+  KEY = 'pocket-redesign-proto-v2';
+
+  state = { tab:'log', amt:0, cat:'Food', note:'', sheet:null, sAmt:0, sName:'', toast:null,
+            reveal:null, flash:null, confirmWipe:false, dispCash:null, data: this.load() };
+
+  // ------------------------------------------------------------ data
+  load() {
+    try {
+      const raw = localStorage.getItem(this.KEY);
+      if (raw) { const d = JSON.parse(raw); if (d.sweep === undefined) d.sweep = true; if (d.buzz === undefined) d.buzz = true; return d; }
+    } catch (e) {}
+    const d = this.seed(); d.sweep = true; d.buzz = true; return d;
+  }
+  seed() {
+    let s = 42; const rnd = () => ((s = s * 16807 % 2147483647) / 2147483647);
+    const day = 864e5, now = Date.now();
+    const pools = { Food:[4000,4000,12000,18000,25000], Travel:[6000,6000,24000,35000], Groceries:[38000,64000,82000],
+      Shopping:[99900,249900], Fun:[29900,49900], Bills:[120000], Health:[35000] };
+    const notes = { Food:['chai','swiggy','lunch',''], Travel:['uber','metro',''], Groceries:['bigbasket',''],
+      Shopping:['',''], Fun:['',''], Bills:['wifi',''], Health:['pharmacy',''] };
+    const weights = [['Food',.32],['Travel',.2],['Groceries',.15],['Shopping',.1],['Fun',.1],['Bills',.07],['Health',.06]];
+    const entries = [];
+    for (let i = 89; i >= 0; i--) {
+      const base = now - i * day;
+      const dt = new Date(base), dom = dt.getDate();
+      const at = (h) => new Date(dt.getFullYear(), dt.getMonth(), dom, h, Math.floor(rnd()*59)).getTime();
+      if (dom === 25) entries.push({ t: at(10), type:'got', cat:'Salary', amt:8500000, acc:'bank', note:'salary' });
+      if (dom === 1) entries.push({ t: at(9), type:'spent', cat:'Bills', amt:1800000, acc:'bank', note:'rent' });
+      if (dom === 14) entries.push({ t: at(21), type:'spent', cat:'Fun', amt:49900, acc:'bank', note:'netflix' });
+      if (dom === 10 && i > 5) entries.push({ t: at(12), type:'transfer', from:'bank', to:'cash', amt:500000 });
+      if (i === 60) entries.push({ t: at(11), type:'invest', cat:'Index fund', amt:2000000, acc:'bank' });
+      if (i === 30) entries.push({ t: at(11), type:'invest', cat:'Tesla', amt:1000000, acc:'bank' });
+      const n = 1 + Math.floor(rnd() * 2);
+      for (let j = 0; j < n; j++) {
+        let r = rnd(), cat = 'Food';
+        for (const [c, w] of weights) { if (r < w) { cat = c; break; } r -= w; }
+        const pool = pools[cat], np = notes[cat];
+        entries.push({ t: at(8 + Math.floor(rnd()*13)), type:'spent', cat, amt: pool[Math.floor(rnd()*pool.length)],
+          acc: rnd() < 0.4 ? 'cash' : 'bank', note: np[Math.floor(rnd()*np.length)] || undefined });
+      }
+    }
+    entries.push({ t: now - 36e5 * 3, type:'got', cat:'Freelance', amt:1500000, acc:'bank', note:'logo work' });
+    entries.sort((a, b) => a.t - b.t);
+    return {
+      cur:'Rs', sel:'cash', last:{ spent:'Food', got:'Salary' },
+      accounts:[{ id:'cash', name:'CASH', init:1000000 }, { id:'bank', name:'BANK', init:3000000 }],
+      entries,
+      budgets:{ Food:600000, Travel:250000, Groceries:500000, Shopping:400000, Fun:150000 },
+      goals:[{ id:'g1', name:'Emergency fund', target:10000000, saved:5000000, created: now - 90*day },
+             { id:'g2', name:'Goa trip', target:2500000, saved:1200000, created: now - 40*day }],
+      debts:[{ id:'d1', name:'Credit card', total:8000000, remaining:4520000, rate:36, min:400000 }],
+      holdings:[{ id:'h1', name:'Index fund', invested:2000000, value:2265000 },
+                { id:'h2', name:'Tesla', invested:1000000, value:1080000 }],
+      recurring:[
+        { id:'r1', name:'Rent', type:'spent', cat:'Bills', amt:1800000, freq:'monthly', next:this.dstr(new Date(now + 3*day)), auto:true, acc:'bank' },
+        { id:'r2', name:'Salary', type:'got', cat:'Salary', amt:8500000, freq:'monthly', next:this.dstr(new Date(now + 27*day)), auto:true, acc:'bank' },
+        { id:'r3', name:'Gym', type:'spent', cat:'Health', amt:150000, freq:'monthly', next:this.dstr(new Date(now)), auto:false, acc:'bank' },
+        { id:'r4', name:'Netflix', type:'spent', cat:'Fun', amt:49900, freq:'monthly', next:this.dstr(new Date(now + 16*day)), auto:true, acc:'bank' }],
+      rules:[{ match:'swiggy', cat:'Food', type:'spent' }],
+    };
+  }
+  dstr(d) { return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+  persist(d) { try { localStorage.setItem(this.KEY, JSON.stringify(d)); } catch (e) {} }
+
+  update(fn, msg, undoable) {
+    this.setState((st) => {
+      const d = JSON.parse(JSON.stringify(st.data));
+      fn(d);
+      if (undoable) this.undoSnap = st.data;
+      this.persist(d);
+      const oldCash = this.cash(st.data), newCash = this.cash(d);
+      if (oldCash !== newCash) this.tween(oldCash, newCash);
+      return { data: d };
+    });
+    if (msg) this.showToast(msg, undoable);
+  }
+  showToast(msg, undoable) {
+    clearTimeout(this.toastT);
+    this.setState({ toast: { msg, undoable } });
+    this.toastT = setTimeout(() => this.setState({ toast: null }), undoable ? 3000 : 1600);
+  }
+  doUndo = () => {
+    if (!this.undoSnap) { this.setState({ toast: null }); return; }
+    const prev = this.undoSnap; this.undoSnap = null;
+    const oldCash = this.cash(this.state.data), newCash = this.cash(prev);
+    this.persist(prev);
+    this.setState({ data: prev, toast: null });
+    if (oldCash !== newCash) this.tween(oldCash, newCash);
+  };
+  tween(from, to) {
+    cancelAnimationFrame(this.raf);
+    const t0 = performance.now(), dur = 450;
+    const step = (t) => {
+      const p = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - p, 3);
+      this.setState({ dispCash: Math.round(from + (to - from) * e) });
+      if (p < 1) this.raf = requestAnimationFrame(step); else this.setState({ dispCash: null });
+    };
+    this.raf = requestAnimationFrame(step);
+  }
+  flashBal(type) {
+    clearTimeout(this.flashT);
+    this.setState({ flash: type });
+    this.flashT = setTimeout(() => this.setState({ flash: null }), 500);
+  }
+
+  // ------------------------------------------------------------ derived
+  cash(d) { return d.accounts.reduce((a, x) => a + this.accBal(d, x), 0); }
+  accBal(d, a) {
+    let b = a.init || 0;
+    for (const e of d.entries) {
+      if (e.type === 'got') { if (e.acc === a.id) b += e.amt; }
+      else if (e.type === 'spent' || e.type === 'invest') { if (e.acc === a.id) b -= e.amt; }
+      else if (e.type === 'transfer') { if (e.from === a.id) b -= e.amt; else if (e.to === a.id) b += e.amt; }
+    }
+    return b;
+  }
+  fmt(c) { return (Math.abs(c) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  fmt0(c) { return Math.round(Math.abs(c) / 100).toLocaleString('en-US'); }
+  emojiOf(cat, type) {
+    const set = type === 'got' ? this.GT : this.SP;
+    const hit = set.find((x) => x[1] === cat);
+    return hit ? hit[0] : '✱';
+  }
+  monthOf(ms) { const d = new Date(ms); return d.getFullYear() * 100 + d.getMonth(); }
+  pad(v, k) { if (k === '⌫') return Math.floor(v / 10); if (k === '00') return Math.min(v * 100, 9999999999); return Math.min(v * 10 + Number(k), 9999999999); }
+
+  // ------------------------------------------------------------ long press
+  lpStart(fn) { this.lpFired = false; this.lpT = setTimeout(() => { this.lpFired = true; fn(); }, 450); }
+  lpEnd() { clearTimeout(this.lpT); }
+  tap(fn) { return () => { if (this.lpFired) { this.lpFired = false; return; } fn(); }; }
+
+  // ------------------------------------------------------------ actions
+  saveEntry(type) {
+    const { amt, note, cat, data } = this.state;
+    if (amt <= 0) return;
+    let c = cat, t = type;
+    const n = (note || '').trim();
+    const rule = data.rules.find((r) => n && n.toLowerCase().includes(r.match.toLowerCase()));
+    if (rule) { t = rule.type; c = rule.cat; }
+    const set = (t === 'got' ? this.GT : this.SP).map((x) => x[1]);
+    if (!set.includes(c)) c = data.last[t] || set[0];
+    const emoji = this.emojiOf(c, t);
+    let msg = (t === 'spent' ? '−' : '+') + this.state.data.cur + this.fmt(amt) + '  ' + emoji;
+    if (t === 'spent' && data.budgets[c]) {
+      const ym = this.monthOf(Date.now());
+      let sp = amt;
+      for (const e of data.entries) if (e.type === 'spent' && e.cat === c && this.monthOf(e.t) === ym) sp += e.amt;
+      if (sp > data.budgets[c]) msg = '🔥 ' + emoji + ' over budget';
+    }
+    // round-up sweep: spare change up to the next 10 drips into the nearest-to-done goal
+    let sweep = 0;
+    if (t === 'spent' && data.sweep !== false) {
+      sweep = (1000 - (amt % 1000)) % 1000;
+      const open = data.goals.filter((g) => g.saved < g.target);
+      if (sweep > 0 && open.length) msg += '   ◎ +' + (sweep / 100).toLocaleString(undefined, { maximumFractionDigits: 2 });
+      else sweep = 0;
+    }
+    this.update((d) => {
+      d.entries.push({ t: Date.now(), type: t, cat: c, amt, note: n || undefined, acc: d.sel });
+      d.last[t] = c;
+      if (sweep > 0) {
+        let rem = sweep;
+        const open = d.goals.filter((g) => g.saved < g.target).sort((a, b) => (b.saved / b.target) - (a.saved / a.target));
+        for (const g of open) {
+          if (rem <= 0) break;
+          const room = g.target - g.saved, take = Math.min(room, rem);
+          g.saved += take; rem -= take;
+        }
+        if (rem > 0 && open.length) open[open.length - 1].saved += rem;
+      }
+    }, msg, true);
+    this.flashBal(t === 'spent' ? 'neg' : 'pos');
+    this.setState({ amt: 0, note: '' });
+  }
+  doInvestNow = () => {
+    const { amt } = this.state;
+    if (amt <= 0) return;
+    this.update((d) => { d.entries.push({ t: Date.now(), type: 'invest', cat: 'Invested', amt, acc: d.sel }); }, '↗' + this.state.data.cur + this.fmt(amt) + ' invested', true);
+    this.flashBal('inv');
+    this.setState({ amt: 0 });
+  };
+  openSheet(sheet, sAmt) { this.setState({ sheet, sAmt: sAmt || 0, sName: '' }); }
+  close = () => this.setState({ sheet: null });
+
+  delEntryAt(i) { this.update((d) => { d.entries.splice(i, 1); }, 'Deleted', true); }
+
+  // ------------------------------------------------------------ charts (createElement — needs live data)
+  line(values, color, w, h, sw) {
+    if (values.length < 2) return null;
+    const min = Math.min(...values, 0), max = Math.max(...values, 0), span = max - min || 1;
+    const pts = values.map((v, i) => [(i / (values.length - 1)) * w, h - 3 - ((v - min) / span) * (h - 6)]);
+    const dl = 'M' + pts.map((p) => p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' L');
+    return React.createElement('svg', { width: '100%', height: h, viewBox: '0 0 ' + w + ' ' + h, preserveAspectRatio: 'none', key: color + w },
+      React.createElement('path', { d: dl + ' L' + w + ' ' + h + ' L0 ' + h + ' Z', fill: color, opacity: 0.12 }),
+      React.createElement('path', { d: dl, stroke: color, strokeWidth: sw || 2, fill: 'none', strokeLinejoin: 'round', strokeLinecap: 'round' }));
+  }
+  donut(slices) {
+    const size = 150, stroke = 22, r = (size - stroke) / 2, cx = size / 2, circ = 2 * Math.PI * r;
+    const total = slices.reduce((a, x) => a + x.v, 0) || 1;
+    let acc = 0;
+    const kids = slices.map((sl, i) => {
+      const f = sl.v / total;
+      const el = React.createElement('circle', { key: i, cx, cy: cx, r, stroke: sl.c, strokeWidth: stroke, fill: 'none',
+        strokeDasharray: Math.max(0, f * circ - 3) + ' ' + circ, strokeDashoffset: -acc * circ, transform: 'rotate(-90 ' + cx + ' ' + cx + ')' });
+      acc += f; return el;
+    });
+    return React.createElement('div', { style: { display: 'flex', justifyContent: 'center' } }, React.createElement('svg', { width: size, height: size }, kids));
+  }
+  monthBarsEl(months) {
+    const max = Math.max(...months.map((m) => Math.max(m.spent, m.got)), 1);
+    return React.createElement('div', { style: { display: 'flex', alignItems: 'flex-end', gap: 10, height: 130 } },
+      months.map((m, i) => React.createElement('div', { key: i, style: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' } },
+        React.createElement('div', { style: { display: 'flex', gap: 3, alignItems: 'flex-end', height: 104 } },
+          React.createElement('div', { style: { width: 9, borderRadius: 4, height: Math.max(3, (m.spent / max) * 100), background: '#FF453A' } }),
+          React.createElement('div', { style: { width: 9, borderRadius: 4, height: Math.max(3, (m.got / max) * 100), background: '#30D158' } })),
+        React.createElement('span', { style: { color: '#5F5F67', fontSize: 10, marginTop: 6 } }, m.label))));
+  }
+
+  // ------------------------------------------------------------ render
+  renderVals() {
+    const st = this.state, d = st.data, cur = d.cur;
+    const now = new Date(), ym = this.monthOf(Date.now());
+    const cash = st.dispCash !== null && st.dispCash !== undefined ? st.dispCash : this.cash(d);
+    let ts = 0, tg = 0;
+    const byCat = {}; let mSpent = 0, mGot = 0;
+    for (const e of d.entries) {
+      const sameDay = new Date(e.t).toDateString() === now.toDateString();
+      if (e.type === 'spent') { if (sameDay) ts += e.amt; if (this.monthOf(e.t) === ym) { byCat[e.cat] = (byCat[e.cat] || 0) + e.amt; mSpent += e.amt; } }
+      if (e.type === 'got') { if (sameDay) tg += e.amt; if (this.monthOf(e.t) === ym) mGot += e.amt; }
+    }
+    const invV = d.holdings.reduce((a, h) => a + h.value, 0);
+    const debtR = d.debts.reduce((a, x) => a + x.remaining, 0);
+    const net = this.cash(d) + invV - debtR;
+    const [balInt, balDec] = this.fmt(cash).split('.');
+    const [amtInt, amtDec] = this.fmt(st.amt).split('.');
+    const [sInt, sDec] = this.fmt(st.sAmt).split('.');
+    const flashC = { neg: '#FF453A', pos: '#30D158', inv: '#BF5AF2' }[st.flash];
+
+    // quick amounts from frequents
+    const freq = {};
+    for (const e of d.entries) if (e.type === 'spent') freq[e.amt] = (freq[e.amt] || 0) + 1;
+    const quickAmts = Object.keys(freq).map(Number).sort((a, b) => freq[b] - freq[a] || a - b).slice(0, 4).sort((a, b) => a - b);
+
+    const mkKeys = (setter) => ['1','2','3','4','5','6','7','8','9','00','0','⌫'].map((k) => ({
+      label: k, color: (k === '00' || k === '⌫') ? '#5F5F67' : '#F5F5F7', size: (k === '00' || k === '⌫') ? '19px' : '24px',
+      onTap: () => setter(k),
+    }));
+
+    // emoji chips: spent set | divider | got set
+    const chip = (e, name, type) => {
+      const lim = type === 'spent' ? (d.budgets[name] || 0) : 0;
+      const sp = byCat[name] || 0, leftV = lim - sp;
+      return {
+        e, fs: e === '✱' ? '16px' : '21px',
+        bg: st.cat === name ? 'rgba(255,255,255,0.1)' : 'transparent',
+        ring: st.cat === name ? 'inset 0 0 0 1.5px #F5F5F7' : 'none',
+        hasBar: lim > 0, barPct: lim ? Math.min(100, (sp / lim) * 100) + '%' : '0%',
+        barC: sp > lim ? '#FF453A' : '#30D158',
+        showLeft: st.cat === name && lim > 0,
+        leftNum: (leftV < 0 ? '−' : '') + this.fmt0(leftV), leftC: leftV < 0 ? '#FF453A' : '#5F5F67',
+        onTap: this.tap(() => this.setState({ cat: name })),
+        onDown: () => this.lpStart(() => { this.setState({ reveal: e + '  ' + name }); clearTimeout(this.revT); this.revT = setTimeout(() => this.setState({ reveal: null }), 1100); }),
+        onUp: () => this.lpEnd(),
+      };
+    };
+    const emojiChips = [...this.SP.map(([e, n]) => chip(e, n, 'spent')), { div: true }, ...this.GT.map(([e, n]) => chip(e, n, 'got'))];
+
+    // recent rows
+    const sorted = d.entries.map((e, i) => ({ e, i })).sort((a, b) => b.e.t - a.e.t).slice(0, 30);
+    const recent = []; let curDay = null;
+    const dayLabel = (k) => {
+      const y = new Date(Date.now() - 864e5);
+      if (k === now.toDateString()) return 'Today';
+      if (k === y.toDateString()) return 'Yesterday';
+      return new Date(k).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+    };
+    for (const { e, i } of sorted) {
+      const k = new Date(e.t).toDateString();
+      if (k !== curDay) { recent.push({ day: dayLabel(k) }); curDay = k; }
+      const time = new Date(e.t).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+      const emoji = e.type === 'transfer' ? '⇆' : e.type === 'invest' ? '↗' : this.emojiOf(e.cat, e.type);
+      recent.push({
+        emoji,
+        sub: e.type === 'transfer' ? (d.accounts.find((a) => a.id === e.from) || {}).name + ' → ' + (d.accounts.find((a) => a.id === e.to) || {}).name : (e.note ? e.note + ' · ' : '') + time,
+        amt: (e.type === 'spent' ? '−' : e.type === 'got' ? '+' : e.type === 'invest' ? '↗' : '') + this.fmt(e.amt),
+        color: e.type === 'got' ? '#30D158' : e.type === 'invest' ? '#BF5AF2' : e.type === 'transfer' ? '#5F5F67' : '#F5F5F7',
+        onTap: this.tap(() => { if (e.type !== 'transfer') this.openSheet({ kind: 'edit', idx: i, type: e.type === 'got' ? 'got' : 'spent', cat: e.cat }, e.amt); }),
+        onDown: () => this.lpStart(() => this.delEntryAt(i)),
+        onUp: () => this.lpEnd(),
+      });
+    }
+
+    // plan
+    const todayS = this.dstr(now);
+    const dueRows = d.recurring.filter((r) => r.next <= todayS).map((r) => ({
+      name: r.name, amt: (r.type === 'spent' ? '−' : '+') + this.fmt(r.amt), color: r.type === 'spent' ? '#FF453A' : '#30D158',
+      onAdd: () => { this.update((dd) => { const x = dd.recurring.find((y) => y.id === r.id); if (!x) return; dd.entries.push({ t: Date.now(), type: x.type, cat: x.cat, amt: x.amt, note: x.name.toLowerCase(), acc: x.acc }); x.next = this.adv(x.next); }, '✓ ' + r.name + ' logged', true); this.flashBal(r.type === 'spent' ? 'neg' : 'pos'); },
+      onSkip: () => this.update((dd) => { const x = dd.recurring.find((y) => y.id === r.id); if (x) x.next = this.adv(x.next); }, 'Skipped', true),
+    }));
+    let totLim = 0, totSp = 0;
+    const budgetRows = this.SP.filter(([, n]) => n !== 'Other').map(([e, n]) => {
+      const sp = byCat[n] || 0, lim = d.budgets[n] || 0, over = lim > 0 && sp > lim;
+      totLim += lim; totSp += sp;
+      return { emoji: e, pct: lim ? Math.min(100, (sp / lim) * 100) + '%' : '0%', barColor: over ? '#FF453A' : '#30D158',
+        nums: this.fmt0(sp) + (lim ? ' / ' + this.fmt0(lim) : ''), flag: over ? '🔥' : '',
+        onTap: () => this.openSheet({ kind: 'budget', cat: n, emoji: e }, lim) };
+    });
+    const left = totLim - totSp;
+    const recRows = [...d.recurring].sort((a, b) => (a.next < b.next ? -1 : 1)).map((r) => {
+      const days = Math.max(0, Math.round((new Date(r.next + 'T09:00').getTime() - Date.now()) / 864e5));
+      return { name: r.name + (r.auto ? ' · auto' : ''), when: days === 0 ? 'today' : 'in ' + days + 'd',
+        amt: (r.type === 'spent' ? '−' : '+') + this.fmt(r.amt), color: r.type === 'spent' ? '#98989F' : '#30D158',
+        onTap: () => this.openSheet({ kind: 'rec', id: r.id }) };
+    });
+
+    // grow
+    const goalRows = d.goals.map((g) => {
+      const done = g.saved >= g.target;
+      return { name: g.name, nums: this.fmt0(g.saved) + ' / ' + this.fmt0(g.target), pct: Math.min(100, (g.saved / g.target) * 100) + '%',
+        flag: done ? '✓' : '', onTap: () => this.openSheet({ kind: 'goal', id: g.id }) };
+    });
+    const debtRows = d.debts.map((x) => {
+      let rr = x.remaining, m = 0;
+      while (rr > 0 && m < 600 && x.min > 0) { rr = rr + (x.rate / 1200) * rr - x.min; m++; }
+      return { name: x.name, nums: this.fmt0(x.remaining) + ' left', eta: x.min > 0 && m < 600 ? '~' + m + ' mo' : '',
+        pct: Math.min(100, ((x.total - x.remaining) / x.total) * 100) + '%', onTap: () => this.openSheet({ kind: 'debt', id: x.id }) };
+    });
+    const holdRows = d.holdings.map((h) => {
+      const g = h.value - h.invested, pc = h.invested > 0 ? (g / h.invested) * 100 : 0;
+      return { name: h.name, val: this.fmt0(h.value), gain: (pc >= 0 ? '+' : '') + pc.toFixed(1) + '%', gainColor: pc >= 0 ? '#30D158' : '#FF453A',
+        onTap: () => this.openSheet({ kind: 'holding', id: h.id }, h.value) };
+    });
+
+    // more glance rows
+    const byDay = new Map();
+    for (const e of d.entries) {
+      const k = new Date(e.t).toDateString();
+      const v = e.type === 'got' ? e.amt : (e.type === 'spent' || e.type === 'invest') ? -e.amt : 0;
+      byDay.set(k, (byDay.get(k) || 0) + v);
+    }
+    const dayKeys = [...byDay.keys()].sort((a, b) => new Date(a) - new Date(b));
+    let acc2 = d.accounts.reduce((a, x) => a + (x.init || 0), 0);
+    const cashSeries = dayKeys.map((k) => { acc2 += byDay.get(k); return acc2 / 100; });
+    const netSeries = cashSeries.map((v) => v + (invV - debtR) / 100);
+    const catList = Object.keys(byCat).sort((a, b) => byCat[b] - byCat[a]);
+    const months = [];
+    for (let i = 5; i >= 0; i--) {
+      const dt = new Date(now.getFullYear(), now.getMonth() - i, 1), key = dt.getFullYear() * 100 + dt.getMonth();
+      let sp = 0, gt = 0;
+      for (const e of d.entries) { if (this.monthOf(e.t) !== key) continue; if (e.type === 'spent') sp += e.amt; else if (e.type === 'got') gt += e.amt; }
+      months.push({ label: dt.toLocaleDateString(undefined, { month: 'short' }), spent: sp, got: gt });
+    }
+    const rate = mGot > 0 ? Math.round(((mGot - mSpent) / mGot) * 100) : null;
+    const topCat = catList[0];
+    const glanceRows = [
+      { glyph: '∿', name: 'Cash', spark: this.line(cashSeries.slice(-30), '#30D158', 64, 16, 1.5), val: this.fmt0(this.cash(d)), color: '#F5F5F7', onTap: () => this.openSheet({ kind: 'chart', chart: 'cash' }) },
+      { glyph: '◆', name: 'Net worth', spark: this.line(netSeries.slice(-30), '#98989F', 64, 16, 1.5), val: this.fmt0(net), color: '#F5F5F7', onTap: () => this.openSheet({ kind: 'chart', chart: 'net' }) },
+      { glyph: '◔', name: 'Where it goes', spark: null, val: topCat ? this.emojiOf(topCat, 'spent') + ' ' + Math.round((byCat[topCat] / (mSpent || 1)) * 100) + '%' : '—', color: '#98989F', onTap: () => this.openSheet({ kind: 'chart', chart: 'donut' }) },
+      { glyph: '▥', name: 'Months', spark: null, val: '−' + this.fmt0(mSpent) + ' +' + this.fmt0(mGot), color: '#98989F', onTap: () => this.openSheet({ kind: 'chart', chart: 'months' }) },
+      { glyph: '％', name: 'Saved this month', spark: null, val: rate === null ? '—' : rate + '%', color: rate !== null && rate < 0 ? '#FF453A' : '#30D158', onTap: () => {} },
+    ];
+
+    // ---------------- sheet ----------------
+    const sh = st.sheet || {};
+    let sheetTitle = '', sheetSub = '', shPad = false, sheetActions = [], shChart = false, chartEl = null, chartLegend = [], recInfo = '', shName = false;
+    const act = (label, color, bg, fn, flex) => ({ label, color, bg, flex: flex || 1, onTap: fn });
+    if (sh.kind === 'budget') {
+      sheetTitle = sh.emoji + '  ' + sh.cat; sheetSub = 'monthly limit'; shPad = true;
+      sheetActions = [act('set', '#000', '#F5F5F7', () => { const v = st.sAmt, c = sh.cat; this.update((dd) => { if (v > 0) dd.budgets[c] = v; else delete dd.budgets[c]; }, v > 0 ? '✓ limit set' : 'limit removed', true); this.close(); }, 1)];
+    } else if (sh.kind === 'goal') {
+      const g = d.goals.find((x) => x.id === sh.id) || {};
+      sheetTitle = '◎  ' + g.name; sheetSub = this.fmt0(g.saved) + ' / ' + this.fmt0(g.target); shPad = true;
+      sheetActions = [
+        act('−', '#98989F', 'rgba(255,255,255,0.06)', () => { const v = st.sAmt; if (v <= 0) return; this.update((dd) => { const x = dd.goals.find((y) => y.id === sh.id); if (x) x.saved = Math.max(0, x.saved - v); }, '−' + this.fmt(v) + ' from goal', true); this.close(); }, 1),
+        act('＋ add', '#000', '#30D158', () => { const v = st.sAmt; if (v <= 0) return; this.update((dd) => { const x = dd.goals.find((y) => y.id === sh.id); if (x) x.saved += v; }, (g.saved + v >= g.target ? '✓ goal reached' : '＋' + this.fmt(v) + '  ◎'), true); this.close(); }, 2)];
+    } else if (sh.kind === 'debt') {
+      const x0 = d.debts.find((x) => x.id === sh.id) || {};
+      sheetTitle = x0.name; sheetSub = this.fmt0(x0.remaining) + ' left · ' + x0.rate + '%'; shPad = true;
+      sheetActions = [act('pay', '#000', '#30D158', () => { const v = st.sAmt; if (v <= 0) return; this.update((dd) => { const x = dd.debts.find((y) => y.id === sh.id); if (x) x.remaining = Math.max(0, x.remaining - v); }, '✓ paid ' + this.fmt(v), true); this.close(); }, 1)];
+    } else if (sh.kind === 'holding') {
+      const h = d.holdings.find((x) => x.id === sh.id) || {};
+      sheetTitle = '↗  ' + h.name; sheetSub = 'invested ' + this.fmt0(h.invested); shPad = true;
+      sheetActions = [act('set value', '#000', '#BF5AF2', () => { const v = st.sAmt; if (v <= 0) return; this.update((dd) => { const x = dd.holdings.find((y) => y.id === sh.id); if (x) x.value = v; }, '✓ updated', true); this.close(); }, 1)];
+    } else if (sh.kind === 'transfer') {
+      sheetTitle = '⇆  Transfer'; sheetSub = ''; shPad = true; sheetActions = [];
+    } else if (sh.kind === 'edit') {
+      sheetTitle = 'Edit'; sheetSub = ''; shPad = true;
+      sheetActions = [
+        act('⌫', '#FF453A', 'rgba(255,69,58,0.15)', () => { this.delEntryAt(sh.idx); this.close(); }, 1),
+        act('save', '#000', '#F5F5F7', () => { const v = st.sAmt, c2 = sh.cat; if (v <= 0) return; this.update((dd) => { const e = dd.entries[sh.idx]; if (e) { e.amt = v; e.cat = c2; } }, '✓ updated', true); this.close(); }, 2)];
+    } else if (sh.kind === 'rec') {
+      const r = d.recurring.find((x) => x.id === sh.id) || {};
+      sheetTitle = '🔁  ' + r.name; sheetSub = r.freq;
+      recInfo = (r.type === 'spent' ? '−' : '+') + cur + this.fmt(r.amt || 0) + ' · next ' + r.next + (r.auto ? ' · logs itself' : '');
+    } else if (sh.kind === 'newGoal' || sh.kind === 'newDebt') {
+      sheetTitle = sh.kind === 'newGoal' ? '◎  New goal' : 'New debt'; sheetSub = sh.kind === 'newGoal' ? 'target amount' : 'amount owed'; shPad = true; shName = true;
+      sheetActions = [act('create', '#000', '#F5F5F7', () => {
+        const v = st.sAmt, nm = (st.sName || '').trim(); if (v <= 0 || !nm) return;
+        if (sh.kind === 'newGoal') this.update((dd) => { dd.goals.push({ id: 'g' + Date.now(), name: nm, target: v, saved: 0, created: Date.now() }); }, '✓ ' + nm, true);
+        else this.update((dd) => { dd.debts.push({ id: 'd' + Date.now(), name: nm, total: v, remaining: v, rate: 0, min: 0 }); }, '✓ ' + nm, true);
+        this.close();
+      }, 1)];
+    } else if (sh.kind === 'recent') {
+      sheetTitle = '◷  Recent'; sheetSub = d.entries.length + ' entries';
+    } else if (sh.kind === 'chart') {
+      shChart = true;
+      if (sh.chart === 'cash') { sheetTitle = '∿  Cash'; sheetSub = '90 days'; chartEl = this.line(cashSeries, '#30D158', 320, 120, 2); }
+      else if (sh.chart === 'net') { sheetTitle = '◆  Net worth'; sheetSub = this.fmt0(net); chartEl = this.line(netSeries, '#BF5AF2', 320, 120, 2); }
+      else if (sh.chart === 'donut') {
+        sheetTitle = '◔  Where it goes'; sheetSub = now.toLocaleDateString(undefined, { month: 'long' });
+        chartEl = this.donut(catList.map((c, i) => ({ v: byCat[c], c: this.GRAYS[Math.min(i, 6)] })));
+        chartLegend = catList.slice(0, 7).map((c, i) => ({ emoji: this.emojiOf(c, 'spent'), name: c, c: this.GRAYS[Math.min(i, 6)],
+          pct: Math.round((byCat[c] / (mSpent || 1)) * 100) + '%', val: this.fmt0(byCat[c]) }));
+      }
+      else if (sh.chart === 'months') { sheetTitle = '▥  Months'; sheetSub = 'spent vs got'; chartEl = this.monthBarsEl(months); }
+    }
+    const editChips = sh.kind === 'edit' ? (sh.type === 'got' ? this.GT : this.SP).map(([e, n]) => ({
+      e, fs: e === '✱' ? '15px' : '20px',
+      bg: sh.cat === n ? 'rgba(255,255,255,0.1)' : 'transparent',
+      ring: sh.cat === n ? 'inset 0 0 0 1.5px #F5F5F7' : 'none',
+      onTap: () => this.setState({ sheet: { ...sh, cat: n } }),
+    })) : [];
+    const selAcc = d.accounts.find((a) => a.id === d.sel) || d.accounts[0];
+    const trDests = d.accounts.filter((a) => a.id !== d.sel).map((a) => ({ name: a.name, onTap: () => {
+      const v = st.sAmt; if (v <= 0) return;
+      this.update((dd) => { dd.entries.push({ t: Date.now(), type: 'transfer', from: dd.sel, to: a.id, amt: v }); }, '⇆ ' + this.fmt(v) + ' → ' + a.name, true);
+      this.close();
+    } }));
+
+    const recObj = sh.kind === 'rec' ? d.recurring.find((x) => x.id === sh.id) : null;
+
+    return {
+      cur, isLog: st.tab === 'log', isPlan: st.tab === 'plan', isGrow: st.tab === 'grow', isMore: st.tab === 'more',
+      goLog: () => this.setState({ tab: 'log' }), goPlan: () => this.setState({ tab: 'plan' }),
+      goGrow: () => this.setState({ tab: 'grow' }), goMore: () => this.setState({ tab: 'more' }),
+      logC: st.tab === 'log' ? '#F5F5F7' : '#5F5F67', planC: st.tab === 'plan' ? '#F5F5F7' : '#5F5F67',
+      growC: st.tab === 'grow' ? '#F5F5F7' : '#5F5F67', moreC: st.tab === 'more' ? '#F5F5F7' : '#5F5F67',
+      dueDot: dueRows.length > 0 && st.tab !== 'plan',
+      balInt, balDec, balColor: flashC || '#F5F5F7',
+      todaySpent: this.fmt(ts), todayGot: this.fmt(tg),
+      accs: d.accounts.map((a) => ({ name: a.name, c: a.id === d.sel ? '#F5F5F7' : '#3A3A40', onTap: () => this.update((dd) => { dd.sel = a.id; }) })),
+      amtInt, amtDec, amtColor: st.amt > 0 ? '#F5F5F7' : '#3A3A40', hasAmt: st.amt > 0, actionOpacity: st.amt > 0 ? 1 : 0.35,
+      quick: quickAmts.map((v) => ({ label: this.fmt0(v), onTap: () => this.setState({ amt: v }) })),
+      emojiChips, keys: mkKeys((k) => this.setState((s2) => ({ amt: this.pad(s2.amt, k) }))),
+      noteVal: st.note, onNote: (ev) => this.setState({ note: ev.target.value }),
+      noteVisible: (this.props.showNote ?? true) && st.amt > 0,
+      quickVisible: (this.props.showQuickAmounts ?? true) && st.amt <= 0,
+      openRecent: () => this.openSheet({ kind: 'recent' }),
+      toggleSweep: () => this.update((dd) => { dd.sweep = dd.sweep === false; }, null),
+      toggleBuzz: () => this.update((dd) => { dd.buzz = dd.buzz === false; }, null),
+      sweepState: d.sweep === false ? 'off' : 'on', sweepC: d.sweep === false ? '#5F5F67' : '#30D158',
+      buzzState: d.buzz === false ? 'off' : 'on', buzzC: d.buzz === false ? '#5F5F67' : '#30D158',
+      saveSpent: () => this.saveEntry('spent'), saveGot: () => this.saveEntry('got'), doInvest: this.doInvestNow,
+      openTransfer: () => this.openSheet({ kind: 'transfer' }, st.amt),
+      recent,
+      monthName: now.toLocaleDateString(undefined, { month: 'long' }).toUpperCase(),
+      dueRows, budgetRows, leftAmt: (left < 0 ? '−' : '') + this.fmt0(left), leftColor: left < 0 ? '#FF453A' : '#30D158', recRows,
+      goalRows, debtRows, holdRows, netWorth: this.fmt0(net),
+      addGoal: () => this.openSheet({ kind: 'newGoal' }), addDebt: () => this.openSheet({ kind: 'newDebt' }),
+      glanceRows, cycleCur: () => this.update((dd) => { const o = ['Rs', '₹', '$', '€']; dd.cur = o[(o.indexOf(dd.cur) + 1) % o.length]; }),
+      exportJson: () => this.showToast('⇪ backup copied'), exportCsv: () => this.showToast('⇪ CSV copied'),
+      wipeAsk: () => this.setState({ confirmWipe: true }), wipeNo: () => this.setState({ confirmWipe: false }),
+      wipeYes: () => { const fresh = this.seed(); fresh.entries = []; fresh.goals = []; fresh.debts = []; fresh.holdings = []; fresh.recurring = []; this.persist(fresh); this.setState({ data: fresh, confirmWipe: false }); this.showToast('Erased'); },
+      confirmWipe: st.confirmWipe,
+      reveal: st.reveal,
+      toastVisible: !!st.toast, toastMsg: st.toast ? st.toast.msg : '', toastUndoable: !!(st.toast && st.toast.undoable), undo: this.doUndo,
+      sheetOpen: !!st.sheet, closeSheet: this.close, sheetTitle, sheetSub,
+      shPad, shName, shEdit: sh.kind === 'edit', shTransfer: sh.kind === 'transfer', shChart, shRec: sh.kind === 'rec', shRecent: sh.kind === 'recent',
+      sAmtInt: sInt, sAmtDec: sDec, sAmtColor: st.sAmt > 0 ? '#F5F5F7' : '#3A3A40',
+      skeys: mkKeys((k) => this.setState((s2) => ({ sAmt: this.pad(s2.sAmt, k) }))),
+      sheetActions, editChips, trFromName: selAcc.name, trDests, chartEl, chartLegend, recInfo,
+      sNameVal: st.sName, onSName: (ev) => this.setState({ sName: ev.target.value }),
+      recAdd: () => { if (!recObj) return; this.update((dd) => { const x = dd.recurring.find((y) => y.id === sh.id); if (!x) return; dd.entries.push({ t: Date.now(), type: x.type, cat: x.cat, amt: x.amt, note: x.name.toLowerCase(), acc: x.acc }); x.next = this.adv(x.next); }, '✓ ' + recObj.name + ' logged', true); this.close(); },
+      recSkip: () => { this.update((dd) => { const x = dd.recurring.find((y) => y.id === sh.id); if (x) x.next = this.adv(x.next); }, 'Skipped', true); this.close(); },
+      recDel: () => { this.update((dd) => { dd.recurring = dd.recurring.filter((x) => x.id !== sh.id); }, 'Deleted', true); this.close(); },
+    };
+  }
+  adv(s) { const [y, m, dd0] = s.split('-').map(Number); const x = new Date(y, m - 1, dd0); x.setMonth(x.getMonth() + 1); return this.dstr(x); }
+}
+</script>
+</body>
+</html>

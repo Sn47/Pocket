@@ -14,6 +14,12 @@
     },
     "android": {
       "package": "com.pocket.minimal"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "backgroundColor": "#000000",
+      "themeColor": "#000000"
     }
   }
 }

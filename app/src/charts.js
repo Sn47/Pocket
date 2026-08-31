@@ -1,4 +1,4 @@
-import { Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { C, GRAYS } from './theme';
 import { emojiFor } from './util';
@@ -67,19 +67,52 @@ export function Donut({ slices, size = 150, stroke = 22 }) {
   );
 }
 
-// ------------------------------------------------ paired bars (spent/got) --
-export function MonthBars({ months }) {
-  const max = Math.max(...months.map((m) => Math.max(m.spent, m.got)), 1);
+// ------------------------------------- labeled comparison bars (insights) --
+export function Bars({ items, height = 96 }) {
+  const max = Math.max(...items.map((x) => x.v), 1);
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 10, height: 132, marginTop: 6 }}>
-      {months.map((m, i) => (
-        <View key={i} style={{ flex: 1, alignItems: 'center' }}>
-          <View style={{ flexDirection: 'row', gap: 3, alignItems: 'flex-end', height: 106 }}>
-            <View style={{ width: 9, borderRadius: 4, height: Math.max(3, (m.spent / max) * 100), backgroundColor: C.neg }} />
-            <View style={{ width: 9, borderRadius: 4, height: Math.max(3, (m.got / max) * 100), backgroundColor: C.pos }} />
-          </View>
-          <Text style={{ color: C.ink3, fontSize: 10, marginTop: 6 }}>{m.label}</Text>
+    <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 16, height }}>
+      {items.map((x, i) => (
+        <View key={i} style={{ flex: 1, alignItems: 'center', justifyContent: 'flex-end', height: '100%', gap: 6 }}>
+          <Text style={{ color: x.c, fontSize: 10.5, fontWeight: '700', fontVariant: ['tabular-nums'] }}>{x.top || ''}</Text>
+          <View style={{ width: '100%', maxWidth: 38, height: Math.max(3, (x.v / max) * (height - 40)), backgroundColor: x.c, borderRadius: 4, opacity: 0.9 }} />
+          <Text style={{ color: C.ink3, fontSize: 10, textAlign: 'center' }}>{x.label}</Text>
         </View>
+      ))}
+    </View>
+  );
+}
+
+// ------------------------------- cumulative pace: this vs last month curves --
+export function PaceChart({ cur, prev, dim, height = 80 }) {
+  const W2 = 320, H2 = 80;
+  const max = Math.max(cur[cur.length - 1] || 0, prev[prev.length - 1] || 0, 1);
+  const path = (arr) => 'M' + arr.map((v, i) => ((i / dim) * W2).toFixed(1) + ' ' + (H2 - 4 - (v / max) * (H2 - 8)).toFixed(1)).join(' L');
+  const curEnd = ((cur.length - 1) / dim) * W2;
+  return (
+    <Svg width="100%" height={height} viewBox={`0 0 ${W2} ${H2}`} preserveAspectRatio="none">
+      <Path d={path(prev)} stroke="rgba(255,255,255,0.18)" strokeWidth={1.5} fill="none" strokeLinejoin="round" />
+      <Path d={path(cur) + ` L${curEnd.toFixed(1)} ${H2} L0 ${H2} Z`} fill={C.neg} opacity={0.08} />
+      <Path d={path(cur)} stroke={C.neg} strokeWidth={2} fill="none" strokeLinejoin="round" strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+// ------------------- paired bars (spent/got), tappable months (12-mo year) --
+export function MonthBars({ months, onPick }) {
+  const max = Math.max(...months.map((m) => Math.max(m.spent, m.got)), 1);
+  const w = months.length > 8 ? 6 : 9;
+  const Wrap = onPick ? Pressable : View;
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 6, height: 132, marginTop: 6 }}>
+      {months.map((m, i) => (
+        <Wrap key={i} onPress={onPick ? () => onPick(m) : undefined} style={{ flex: 1, alignItems: 'center' }}>
+          <View style={{ flexDirection: 'row', gap: 2, alignItems: 'flex-end', height: 104 }}>
+            <View style={{ width: w, borderRadius: 3, height: Math.max(3, (m.spent / max) * 100), backgroundColor: C.neg }} />
+            <View style={{ width: w, borderRadius: 3, height: Math.max(3, (m.got / max) * 100), backgroundColor: C.pos }} />
+          </View>
+          <Text style={{ color: C.ink3, fontSize: 9, marginTop: 6 }}>{m.label}</Text>
+        </Wrap>
       ))}
     </View>
   );

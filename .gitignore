@@ -5,3 +5,6 @@ dist/
 app/node_modules/
 app/.expo/
 app/dist/
+app/android/
+app/ios/
+*.zip

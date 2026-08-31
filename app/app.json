@@ -2,10 +2,11 @@
   "expo": {
     "name": "Pocket",
     "slug": "pocket",
-    "version": "2.0.0",
+    "version": "2.2.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#000000",
+    "icon": "./assets/icon.png",
     "splash": {
       "backgroundColor": "#000000"
     },
@@ -13,7 +14,12 @@
       "supportsTablet": false
     },
     "android": {
-      "package": "com.pocket.minimal"
+      "package": "com.pocket.minimal",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#000000"
+      }
     },
     "web": {
       "bundler": "metro",

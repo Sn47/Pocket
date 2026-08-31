@@ -6,6 +6,43 @@ import { C } from './theme';
 import { buzz } from './store';
 import { fmt } from './util';
 
+// ----------------------------------------------------------- emoji picker --
+export const EMOJI_CHOICES = [
+  '💰', '💸', '🪙', '💳', '🏦', '🧾', '📈', '📉', '🎯',
+  '🍔', '🍕', '🌮', '🍣', '🍜', '🍩', '🍦', '☕', '🧋', '🍺', '🍷', '🥗', '🍎', '🥡',
+  '🚕', '🚌', '🚇', '✈️', '🛵', '🚗', '⛽', '🚲',
+  '🛒', '🛍', '👗', '👟', '💄', '🎁', '📦',
+  '🏠', '💡', '🔌', '💧', '🔥', '🧹', '🛠', '🔑',
+  '📱', '💻', '🎧', '📚', '🎬', '🎮', '🎲', '🎸', '🎤', '🎨',
+  '⚽', '🏏', '🏋️', '🧘', '🏊', '🎳', '⛰️', '🏖️',
+  '💊', '🩺', '🦷', '🧴', '💇', '🧠',
+  '🐶', '🐱', '🐢', '🦄', '🦋', '🐠', '🐾', '🌱', '🌸', '🌊', '⭐', '🌙', '☀️',
+  '👶', '💍', '🎓', '💼', '🖊', '✂️', '🕯', '🧸', '🎪', '🎟️', '✱',
+];
+
+// horizontal 3-row grid — no keyboard needed
+export function EmojiPicker({ selected, onPick }) {
+  const cols = [];
+  for (let i = 0; i < EMOJI_CHOICES.length; i += 3) cols.push(EMOJI_CHOICES.slice(i, i + 3));
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 10 }} contentContainerStyle={{ gap: 6, paddingVertical: 2, paddingHorizontal: 2 }}>
+      {cols.map((col, i) => (
+        <View key={i} style={{ gap: 6 }}>
+          {col.map((em) => (
+            <Pressable
+              key={em}
+              onPress={() => { buzz(); onPick(em); }}
+              style={({ pressed }) => [u.emChip, selected === em && u.emChipOn, pressed && { transform: [{ scale: 0.9 }] }]}
+            >
+              <Text style={{ fontSize: 19 }}>{em}</Text>
+            </Pressable>
+          ))}
+        </View>
+      ))}
+    </ScrollView>
+  );
+}
+
 // ------------------------------------------------------------ micro label --
 export const Micro = ({ children, style, dim }) => (
   <Text style={[u.micro, dim && { color: C.ink4 }, style]}>{children}</Text>
@@ -100,11 +137,11 @@ export function Sheet({ visible, onClose, title, sub, children }) {
 // Whole-number entry (stored as cents internally): digits append whole units.
 export const padAdvance = (amt, k) => {
   if (k === '⌫') return Math.floor(amt / 1000) * 100;
-  if (k === '00') return Math.min(amt * 100, 9999999999);
-  return Math.min(amt * 10 + Number(k) * 100, 9999999999);
+  if (k === '00') return Math.min(amt * 100, 999999999900);
+  return Math.min(amt * 10 + Number(k) * 100, 999999999900);
 };
 
-export function KeyPad({ onKey, keyH = 52, radius = 16 }) {
+export function KeyPad({ onKey, onClear, keyH = 52, radius = 16 }) {
   return (
     <View style={u.pad}>
       {['1', '2', '3', '4', '5', '6', '7', '8', '9', '00', '0', '⌫'].map((k) => {
@@ -113,6 +150,8 @@ export function KeyPad({ onKey, keyH = 52, radius = 16 }) {
           <Pressable
             key={k}
             onPress={() => { buzz(); onKey(k); }}
+            onLongPress={k === '⌫' && onClear ? () => { buzz(); onClear(); } : undefined}
+            delayLongPress={450}
             style={({ pressed }) => [u.key, { height: keyH, borderRadius: radius }, pressed && u.keyPress]}
           >
             <Text style={[u.keyText, alt && { color: C.ink3, fontSize: 19 }]}>{k}</Text>
@@ -190,4 +229,7 @@ const u = StyleSheet.create({
   keyText: { color: C.ink, fontSize: 24, fontWeight: '500', fontVariant: ['tabular-nums'] },
 
   sheetAct: { height: 54, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+
+  emChip: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1.5, borderColor: 'transparent' },
+  emChipOn: { backgroundColor: C.fillSel, borderColor: C.ink },
 });

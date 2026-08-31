@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { C } from '../theme';
+import { C, GRAYS } from '../theme';
 import { buzz, useStore } from '../store';
 import { fmt, fmt0, uid } from '../util';
 import { AmountSheet, Field, Micro } from '../ui';
 
 export default function GrowScreen() {
-  const { data, update, totals } = useStore();
+  const { data, sel, update, totals } = useStore();
 
   const [goalSheet, setGoalSheet] = useState(null); // goal id
   const [debtSheet, setDebtSheet] = useState(null); // debt id
@@ -17,6 +17,14 @@ export default function GrowScreen() {
   const goal = goalSheet ? data.goals.find((g) => g.id === goalSheet) : null;
   const debt = debtSheet ? data.debts.find((d) => d.id === debtSheet) : null;
   const hold = holdSheet ? data.holdings.find((h) => h.id === holdSheet) : null;
+
+  // portfolio aggregates
+  const invV = data.holdings.reduce((a, h) => a + h.value, 0);
+  const invIn = data.holdings.reduce((a, h) => a + h.invested, 0);
+  const invGainAbs = invV - invIn;
+  const holdsSorted = [...data.holdings].sort((a, b) => b.value - a.value);
+  const firstInv = data.entries.find((e) => e.type === 'invest');
+  const invMonths = firstInv ? Math.max(1, (Date.now() - firstInv.t) / (30 * 864e5)) : 1;
 
   const eta = (x) => {
     if (!x.min || x.min <= 0) return '';
@@ -81,20 +89,44 @@ export default function GrowScreen() {
 
       {/* --------------------------------------------------------- invested */}
       <Micro style={{ marginTop: 22, letterSpacing: 1.8 }}>↗ INVESTED</Micro>
-      {!data.holdings.length && <Text style={s.empty}>Nothing invested yet — type an amount, tap ↗.</Text>}
-      {data.holdings.map((h) => {
+      {!data.holdings.length && <Text style={s.empty}>Nothing invested yet.</Text>}
+      {data.holdings.length > 0 && (
+        <View>
+          {/* portfolio header: value · gain · put in · /mo pace · allocation bar */}
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 10, marginTop: 10 }}>
+            <Text style={{ color: C.ink, fontSize: 26, fontWeight: '700', letterSpacing: -0.5, fontVariant: ['tabular-nums'] }}>{fmt0(invV)}</Text>
+            <Text style={{ color: invGainAbs >= 0 ? C.pos : C.neg, fontSize: 13, fontWeight: '700', fontVariant: ['tabular-nums'] }}>
+              {(invGainAbs >= 0 ? '+' : '−') + fmt0(invGainAbs) + ' · ' + (invIn > 0 ? ((invGainAbs / invIn) * 100).toFixed(1) : '0.0') + '%'}
+            </Text>
+          </View>
+          <Text style={{ color: C.ink3, fontSize: 11, marginTop: 3, fontVariant: ['tabular-nums'] }}>
+            put in {fmt0(invIn)} · {fmt0(invIn / invMonths)}/mo pace
+          </Text>
+          <View style={{ flexDirection: 'row', height: 4, borderRadius: 2, overflow: 'hidden', gap: 2, marginTop: 12 }}>
+            {holdsSorted.map((h, i) => (
+              <View key={h.id} style={{ width: (invV > 0 ? Math.max(2, (h.value / invV) * 100) : 0) + '%', backgroundColor: GRAYS[Math.min(i, 6)], height: 4 }} />
+            ))}
+          </View>
+        </View>
+      )}
+      {holdsSorted.map((h, i) => {
         const g = h.value - h.invested;
         const pc = h.invested > 0 ? (g / h.invested) * 100 : 0;
         return (
           <Pressable
             key={h.id}
             onPress={() => { buzz(); setHoldSheet(h.id); }}
-            onLongPress={() => update((d) => { d.holdings = d.holdings.filter((x) => x.id !== h.id); }, 'Deleted', true)}
-            delayLongPress={450}
             style={({ pressed }) => [s.hRow, pressed && { opacity: 0.55 }]}
           >
-            <Text style={{ fontSize: 15, width: 28, textAlign: 'center', color: C.inv }}>↗</Text>
-            <Text style={{ flex: 1, color: C.ink, fontSize: 14.5, fontWeight: '600' }} numberOfLines={1}>{h.name}</Text>
+            <View style={{ width: 28, alignItems: 'center' }}>
+              <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: GRAYS[Math.min(i, 6)] }} />
+            </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={{ color: C.ink, fontSize: 14.5, fontWeight: '600' }} numberOfLines={1}>{h.name}</Text>
+              <Text style={{ color: C.ink3, fontSize: 11, marginTop: 2, fontVariant: ['tabular-nums'] }}>
+                {(invV > 0 ? Math.round((h.value / invV) * 100) + '%' : '—')} of portfolio · in {fmt0(h.invested)}
+              </Text>
+            </View>
             <Text style={{ color: C.ink, fontSize: 13.5, fontWeight: '600', fontVariant: ['tabular-nums'] }}>{fmt0(h.value)}</Text>
             <Text style={{ color: pc >= 0 ? C.pos : C.neg, fontSize: 11.5, fontWeight: '700', fontVariant: ['tabular-nums'], minWidth: 48, textAlign: 'right' }}>
               {(pc >= 0 ? '+' : '') + pc.toFixed(1) + '%'}
@@ -102,6 +134,9 @@ export default function GrowScreen() {
           </Pressable>
         );
       })}
+      <Pressable onPress={() => { buzz(); setNewName(''); setNewKind('newHold'); }} style={({ pressed }) => [s.ghost, pressed && { opacity: 0.6 }]}>
+        <Text style={s.ghostText}>＋ investment</Text>
+      </Pressable>
 
       {/* -------------------------------------------------------- net worth */}
       <View style={s.netRow}>
@@ -154,39 +189,69 @@ export default function GrowScreen() {
         }]}
       />
 
-      {/* ------------------------------------------------- holding value sheet */}
+      {/* --------------------------------- holding: ⌫ sell / ＋ add / set value */}
       <AmountSheet
         visible={!!hold}
         title={hold ? '↗  ' + hold.name : ''}
-        sub={hold ? 'invested ' + fmt0(hold.invested) : ''}
+        sub={hold ? 'in ' + fmt0(hold.invested) + ' · now ' + fmt0(hold.value) : ''}
         cur={data.cur}
-        initial={hold ? hold.value : 0}
         onClose={() => setHoldSheet(null)}
-        actions={[{
-          label: 'set value', color: '#000', bg: C.inv, flex: 1,
-          onPress: (v) => {
-            if (v <= 0) return;
-            const id = hold.id; setHoldSheet(null);
-            update((d) => { const x = d.holdings.find((y) => y.id === id); if (x) x.value = v; }, '✓ updated', true);
+        actions={[
+          {
+            label: '⌫ sell', color: C.neg, bg: C.negSoft, flex: 1,
+            onPress: () => {
+              const h0 = hold; setHoldSheet(null);
+              update((d) => {
+                const x = d.holdings.find((y) => y.id === h0.id);
+                if (!x) return;
+                d.entries.push({ id: uid(), t: Date.now(), type: 'got', cat: 'Other', amt: x.value, note: 'sold ' + x.name.toLowerCase(), acc: sel });
+                d.holdings = d.holdings.filter((y) => y.id !== h0.id);
+              }, '✓ sold · +' + fmt(h0.value || 0), true);
+            },
           },
-        }]}
+          {
+            label: '＋ add', color: '#000', bg: C.inv, flex: 1,
+            onPress: (v) => {
+              if (v <= 0) return;
+              const h0 = hold; setHoldSheet(null);
+              update((d) => {
+                const x = d.holdings.find((y) => y.id === h0.id);
+                if (!x) return;
+                d.entries.push({ id: uid(), t: Date.now(), type: 'invest', cat: x.name, amt: v, acc: sel });
+                x.invested += v; x.value += v;
+              }, '↗ +' + fmt(v) + '  ' + h0.name, true);
+            },
+          },
+          {
+            label: 'set value', color: C.ink2, bg: C.fill, flex: 1,
+            onPress: (v) => {
+              if (v <= 0) return;
+              const id = hold.id; setHoldSheet(null);
+              update((d) => { const x = d.holdings.find((y) => y.id === id); if (x) x.value = v; }, '✓ value updated', true);
+            },
+          },
+        ]}
       />
 
-      {/* ------------------------------------------------- new goal / new debt */}
+      {/* ------------------------------- new goal / new debt / new investment */}
       <AmountSheet
         visible={!!newKind}
-        title={newKind === 'newGoal' ? '◎  New goal' : 'New debt'}
-        sub={newKind === 'newGoal' ? 'target amount' : 'amount owed'}
+        title={newKind === 'newHold' ? '↗  New investment' : newKind === 'newGoal' ? '◎  New goal' : 'New debt'}
+        sub={newKind === 'newHold' ? 'amount invested — leaves your cash' : newKind === 'newGoal' ? 'target amount' : 'amount owed'}
         cur={data.cur}
         onClose={() => setNewKind(null)}
         actions={[{
-          label: 'create', color: '#000', bg: C.ink, flex: 1,
+          label: 'create', color: '#000', bg: newKind === 'newHold' ? C.inv : C.ink, flex: 1,
           onPress: (v) => {
             const nm = newName.trim();
             if (v <= 0 || !nm) return;
             const kind = newKind; setNewKind(null);
             if (kind === 'newGoal') update((d) => { d.goals.push({ id: uid(), name: nm, target: v, saved: 0, created: Date.now() }); }, '✓ ' + nm, true);
-            else update((d) => { d.debts.push({ id: uid(), name: nm, total: v, remaining: v, rate: 0, min: 0 }); }, '✓ ' + nm, true);
+            else if (kind === 'newDebt') update((d) => { d.debts.push({ id: uid(), name: nm, total: v, remaining: v, rate: 0, min: 0 }); }, '✓ ' + nm, true);
+            else update((d) => {
+              d.entries.push({ id: uid(), t: Date.now(), type: 'invest', cat: nm, amt: v, acc: sel });
+              d.holdings.push({ id: uid(), name: nm, invested: v, value: v });
+            }, '↗ ' + nm, true);
           },
         }]}
       >

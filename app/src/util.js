@@ -8,9 +8,21 @@ export const EMOJI = {
   Food: '🍔', Travel: '🚕', Groceries: '🛒', Bills: '💡', Shopping: '🛍', Fun: '🎮', Health: '💊',
   Salary: '💼', Freelance: '🧾', Gift: '🎁', Refund: '↩', Other: '✱',
 };
-export const emojiFor = (cat) => EMOJI[cat] || '✱';
+
+// user-defined category → emoji overrides, synced from the store on every
+// load/update (see migrate) so emojiFor stays a plain function everywhere
+let CUSTOM_EMOJI = {};
+export const setCustomEmoji = (m) => { CUSTOM_EMOJI = m || {}; };
+export const emojiFor = (cat) => CUSTOM_EMOJI[cat] || EMOJI[cat] || '✱';
 
 export const CURRENCIES = ['Rs', '₹', '$', '€'];
+
+// money mood pools by runway tier
+export const MOODS = {
+  ok: ['😻', '😽', '😸', '🙈', '🙉', '🐒', '🐶', '🦄', '🦋', '🐞', '🐬'],
+  tight: ['😼', '🐢', '🐌', '🦥', '🐫', '🦉', '🐧', '🙈', '🐾'],
+  low: ['🕸️', '🙀', '😿', '🙊', '😾', '🫥', '🥀'],
+};
 
 // top-4 most frequent spent amounts, ascending; SHEETS.md fallback when no history
 export const quickAmounts = (entries) => {

@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
-import { DEF_CATS, adv, fmtDate, monthKey, monthOf, nextMs } from './util';
+import { DEF_CATS, MOODS, adv, fmtDate, monthKey, monthOf, nextMs, setCustomEmoji } from './util';
 
 const KEY = 'pocket-rn-v3';
 const Ctx = createContext(null);
@@ -12,6 +12,9 @@ export const blank = () => ({
   cats: { spent: [...DEF_CATS.spent], got: [...DEF_CATS.got] },
   snapshots: {}, cur: 'Rs', pin: '',
   last: { spent: '', got: '' }, sweep: true, buzzOn: true,
+  pins: [], dismissedRec: [], dismissedIns: {}, lastReport: '', surplusDone: '',
+  moodOn: true, ambientOn: true, offerOn: true, suggestOn: true,
+  catEmoji: {}, moods: { ok: [...MOODS.ok], tight: [...MOODS.tight], low: [...MOODS.low] },
 });
 
 let buzzEnabled = true;
@@ -53,6 +56,7 @@ export function seed() {
     if (dom === 25) entries.push({ t: at(10), type: 'got', cat: 'Salary', amt: 8500000, acc: 'bank', note: 'salary' });
     if (dom === 1) entries.push({ t: at(9), type: 'spent', cat: 'Bills', amt: 1800000, acc: 'bank', note: 'rent' });
     if (dom === 14) entries.push({ t: at(21), type: 'spent', cat: 'Fun', amt: 49900, acc: 'bank', note: 'netflix' });
+    if (dom === 20) entries.push({ t: at(19), type: 'spent', cat: 'Fun', amt: 19900, acc: 'bank', note: 'spotify' });
     if (dom === 10 && i > 5) entries.push({ t: at(12), type: 'transfer', from: 'bank', to: 'cash', amt: 500000 });
     if (i === 60) entries.push({ t: at(11), type: 'invest', cat: 'Index fund', amt: 2000000, acc: 'bank' });
     if (i === 30) entries.push({ t: at(11), type: 'invest', cat: 'Tesla', amt: 1000000, acc: 'bank' });
@@ -120,6 +124,18 @@ function migrate(d) {
   if (!d.last || typeof d.last !== 'object') d.last = { spent: '', got: '' };
   if (typeof d.sweep !== 'boolean') d.sweep = true;
   if (typeof d.buzzOn !== 'boolean') d.buzzOn = true;
+  if (!Array.isArray(d.pins)) d.pins = [];
+  if (!Array.isArray(d.dismissedRec)) d.dismissedRec = [];
+  if (!d.dismissedIns || typeof d.dismissedIns !== 'object') d.dismissedIns = {};
+  if (typeof d.lastReport !== 'string') d.lastReport = '';
+  if (typeof d.surplusDone !== 'string') d.surplusDone = '';
+  for (const k of ['moodOn', 'ambientOn', 'offerOn', 'suggestOn']) if (typeof d[k] !== 'boolean') d[k] = true;
+  if (!d.catEmoji || typeof d.catEmoji !== 'object') d.catEmoji = {};
+  if (!d.moods || typeof d.moods !== 'object') d.moods = {};
+  for (const k of ['ok', 'tight', 'low']) if (!Array.isArray(d.moods[k]) || !d.moods[k].length) d.moods[k] = [...MOODS[k]];
+  setCustomEmoji(d.catEmoji); // keep emojiFor in sync everywhere, synchronously
+  // v2.1 uses a plain 4-digit PIN (local only); drop old hashed pins
+  if (typeof d.pin !== 'string' || (d.pin && !/^\d{4}$/.test(d.pin))) d.pin = '';
   return d;
 }
 
@@ -171,9 +187,12 @@ export function StoreProvider({ children }) {
   const [data, setData] = useState(blank);
   const [ready, setReady] = useState(false);
   const [sel, setSel] = useState('cash');
+  const [tab, setTab] = useState('log');
   const [toast, setToast] = useState(null); // { msg, undoable }
+  const [sweepOffer, setSweepOffer] = useState(null); // cents, salary sweep pill
   const undoSnap = useRef(null);
   const toastT = useRef(null);
+  const offerT = useRef(null);
 
   const persist = (d) => AsyncStorage.setItem(KEY, JSON.stringify(d)).catch(() => {});
 
@@ -231,8 +250,38 @@ export function StoreProvider({ children }) {
   const accName = useCallback((id) => (data.accounts.find((x) => x.id === id) || { name: '?' }).name, [data.accounts]);
   const catsFor = useCallback((type) => data.cats[type] || DEF_CATS[type] || [], [data.cats]);
 
+  // salary sweep offer: shows a 5s one-tap pill (income ≥ 10,000 with an open goal)
+  const offerSweep = useCallback((v) => {
+    clearTimeout(offerT.current);
+    setSweepOffer(v);
+    offerT.current = setTimeout(() => setSweepOffer(null), 5000);
+  }, []);
+
+  const takeSweepOffer = useCallback(() => {
+    setSweepOffer((v) => {
+      if (v) {
+        clearTimeout(offerT.current);
+        update((d) => {
+          let rem = v;
+          const open = d.goals.filter((g) => g.saved < g.target).sort((a, b) => (b.saved / b.target) - (a.saved / a.target));
+          for (const g of open) { if (rem <= 0) break; const take = Math.min(g.target - g.saved, rem); g.saved += take; rem -= take; }
+          if (rem > 0 && open.length) open[open.length - 1].saved += rem;
+        }, '＋' + data.cur + (Math.round(v / 100)).toLocaleString('en-US') + '  ◎', true);
+      }
+      return null;
+    });
+  }, [update, data.cur]);
+
+  const restoreDemo = useCallback(() => {
+    const fresh = migrate(seed());
+    AsyncStorage.setItem(KEY, JSON.stringify(fresh)).catch(() => {});
+    setData(fresh);
+    show('↺ sample data restored');
+  }, [show]);
+
   const value = {
-    data, ready, sel, setSel, update, undo, toast, show,
+    data, ready, sel, setSel, tab, setTab, update, undo, toast, show,
+    sweepOffer, offerSweep, takeSweepOffer, restoreDemo,
     totals: t, money, accName, catsFor,
     accBalance: (a) => accBalance(data, a),
   };

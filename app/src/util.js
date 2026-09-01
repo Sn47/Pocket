@@ -3,10 +3,34 @@ export const DEF_CATS = {
   got: ['Salary', 'Freelance', 'Gift', 'Refund', 'Other'],
 };
 
-// functional emoji vocabulary (brief: identifiers, never decoration)
+// ------------------------------------------------------ v3 category model --
+// base spend pairs, income pairs, onboarding sources — [emoji, name]
+export const SP = [['🍔', 'Food'], ['🚕', 'Travel'], ['🛒', 'Groceries'], ['💡', 'Bills'], ['🛍', 'Shopping'], ['🎮', 'Fun'], ['💊', 'Health'], ['✱', 'Other']];
+export const GT = [['💼', 'Salary'], ['🧾', 'Freelance'], ['🏪', 'Business'], ['🏠', 'Rent income'], ['🪙', 'Pocket money'], ['🎁', 'Gift'], ['↩', 'Refund'], ['✱', 'Other']];
+export const SRC = [['💼', 'Salary'], ['🧾', 'Freelance'], ['🏪', 'Business'], ['🏠', 'Rent income'], ['🪙', 'Pocket money'], ['🎁', 'Gift']];
+
+// category bubble tints (13% alpha per the v3 tokens)
+export const TINT = {
+  Food: 'rgba(255,159,10,0.13)', Travel: 'rgba(10,132,255,0.13)', Groceries: 'rgba(48,209,88,0.13)',
+  Bills: 'rgba(255,214,10,0.11)', Shopping: 'rgba(255,55,95,0.13)', Fun: 'rgba(191,90,242,0.13)',
+  Health: 'rgba(100,210,255,0.12)', Other: 'rgba(255,255,255,0.06)',
+};
+
+// all spend categories: base (minus Other) + custom pairs + Other last
+export const allCats = (d) => [...SP.filter((x) => x[1] !== 'Other'), ...((d && d.cats) || []), ['✱', 'Other']];
+
+// income set: personalized from onboarding sources, else defaults
+export const gotSet = (d) => {
+  const p = d && d.profile;
+  if (!p || !p.sources || !p.sources.length) return [['💼', 'Salary'], ['🧾', 'Freelance'], ['🎁', 'Gift'], ['↩', 'Refund'], ['✱', 'Other']];
+  return [...GT.filter((x) => p.sources.includes(x[1])), ['↩', 'Refund'], ['✱', 'Other']];
+};
+
+// functional emoji vocabulary (identifiers, never decoration)
 export const EMOJI = {
   Food: '🍔', Travel: '🚕', Groceries: '🛒', Bills: '💡', Shopping: '🛍', Fun: '🎮', Health: '💊',
-  Salary: '💼', Freelance: '🧾', Gift: '🎁', Refund: '↩', Other: '✱',
+  Salary: '💼', Freelance: '🧾', Business: '🏪', 'Rent income': '🏠', 'Pocket money': '🪙',
+  Gift: '🎁', Refund: '↩', Savings: '🏦', Other: '✱',
 };
 
 // user-defined category → emoji overrides, synced from the store on every

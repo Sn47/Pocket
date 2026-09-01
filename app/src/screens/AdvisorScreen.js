@@ -8,7 +8,7 @@ import { Bars, PaceChart } from '../charts';
 import { analyze, buildInsights, mindfulLine, paceData, scoreLever } from '../logic';
 
 export default function AdvisorScreen() {
-  const { data, sel, setTab, update, catsFor } = useStore();
+  const { data, acc, setTab, update, catsFor } = useStore();
   const now = new Date();
 
   const [scoreOpen, setScoreOpen] = useState(false);
@@ -110,7 +110,7 @@ export default function AdvisorScreen() {
             if (v <= 0 || !nm) return;
             setAction(null);
             update((d) => {
-              d.entries.push({ id: uid(), t: Date.now(), type: 'invest', cat: nm, amt: v, acc: sel });
+              d.entries.push({ id: uid(), t: Date.now(), type: 'invest', cat: nm, amt: v, acc: acc });
               d.holdings.push({ id: uid(), name: nm, invested: v, value: v });
             }, '↗ ' + nm, true);
           },
@@ -129,7 +129,7 @@ export default function AdvisorScreen() {
 
   return (
     <ScrollView contentContainerStyle={s.wrap}>
-      <Micro>ADVISOR</Micro>
+      <Micro>{data.profile && data.profile.name ? 'ADVISOR · ' + data.profile.name.toUpperCase() : 'ADVISOR'}</Micro>
 
       {/* health score */}
       <Pressable onPress={() => { buzz(); setScoreOpen(true); }} style={({ pressed }) => [{ marginTop: 16 }, pressed && { opacity: 0.7 }]}>
@@ -190,7 +190,7 @@ export default function AdvisorScreen() {
             <Text style={{ color: C.ink, fontSize: 12, fontWeight: '600', fontVariant: ['tabular-nums'], minWidth: 56, textAlign: 'right' }}>{f.val}</Text>
           </View>
         ))}
-        <Text style={{ color: C.ink2, fontSize: 12.5, lineHeight: 18, marginTop: 14, textAlign: 'center' }}>{scoreLever(A)}</Text>
+        <Text style={{ color: C.ink2, fontSize: 12.5, lineHeight: 18, marginTop: 14, textAlign: 'center' }}>{scoreLever(A, data.profile && data.profile.name)}</Text>
       </Sheet>
 
       {/* -------------------------------------------------------- rate sheet */}

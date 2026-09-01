@@ -4,15 +4,50 @@ import { C, GRAYS } from '../theme';
 import { buzz, useStore } from '../store';
 import { fmt, fmt0, uid } from '../util';
 import { AmountSheet, Field, Micro } from '../ui';
+import { debtPlan, dueLabel, goalPlan } from '../logic';
+
+// due-date chip row for goal/debt sheets: current · 3 mo · 6 mo · 1 yr · ✕
+function DueChips({ item, onSet }) {
+  const cur2 = item && item.due ? dueLabel(item.due) : 'no date';
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 14 }} contentContainerStyle={{ gap: 8, alignItems: 'center' }}>
+      <Text style={{ color: C.ink3, fontSize: 10, fontWeight: '700', letterSpacing: 1.5 }}>DUE</Text>
+      {[
+        { label: cur2, dim: true },
+        { label: '3 mo', m: 3 },
+        { label: '6 mo', m: 6 },
+        { label: '1 yr', m: 12 },
+        { label: '✕', m: 0, dim: true },
+      ].map((c, i) => (
+        <Pressable
+          key={i}
+          disabled={c.m === undefined}
+          onPress={() => { buzz(); onSet(c.m); }}
+          style={({ pressed }) => [s.dueChip, c.dim && { backgroundColor: 'rgba(255,255,255,0.03)' }, pressed && { opacity: 0.7 }]}
+        >
+          <Text style={{ color: c.dim ? C.ink3 : C.ink, fontSize: 11.5, fontWeight: '700' }}>{c.label}</Text>
+        </Pressable>
+      ))}
+    </ScrollView>
+  );
+}
 
 export default function GrowScreen() {
-  const { data, sel, update, totals } = useStore();
+  const { data, acc, update, totals } = useStore();
 
   const [goalSheet, setGoalSheet] = useState(null); // goal id
   const [debtSheet, setDebtSheet] = useState(null); // debt id
   const [holdSheet, setHoldSheet] = useState(null); // holding id
-  const [newKind, setNewKind] = useState(null); // 'newGoal' | 'newDebt'
+  const [savOpen, setSavOpen] = useState(false);
+  const [newKind, setNewKind] = useState(null); // 'newGoal' | 'newDebt' | 'newHold'
   const [newName, setNewName] = useState('');
+
+  const setDueFor = (kind, id) => (m) => update((d) => {
+    const it = kind === 'goal' ? d.goals.find((x) => x.id === id) : d.debts.find((x) => x.id === id);
+    if (!it) return;
+    if (m) it.due = new Date(Date.now() + m * 30 * 864e5).toISOString();
+    else delete it.due;
+  }, m ? '⏱ due set' : 'due cleared');
 
   const goal = goalSheet ? data.goals.find((g) => g.id === goalSheet) : null;
   const debt = debtSheet ? data.debts.find((d) => d.id === debtSheet) : null;
@@ -36,6 +71,13 @@ export default function GrowScreen() {
   return (
     <ScrollView contentContainerStyle={s.wrap} keyboardShouldPersistTaps="handled">
       <Micro>GROW</Micro>
+
+      {/* ---------------------------------------------------------- savings */}
+      <Micro style={{ marginTop: 20, letterSpacing: 1.8 }}>🏦 SAVINGS</Micro>
+      <Pressable onPress={() => { buzz(); setSavOpen(true); }} style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'baseline', gap: 10, marginTop: 10 }, pressed && { opacity: 0.6 }]}>
+        <Text style={{ color: C.ink, fontSize: 26, fontWeight: '700', letterSpacing: -0.5, fontVariant: ['tabular-nums'] }}>{fmt0(data.savings || 0)}</Text>
+        <Text style={{ color: C.ink3, fontSize: 11 }}>tap to add or withdraw</Text>
+      </Pressable>
 
       {/* ------------------------------------------------------------ goals */}
       <Micro style={{ marginTop: 20, letterSpacing: 1.8 }}>◎ GOALS</Micro>
@@ -83,6 +125,12 @@ export default function GrowScreen() {
           </View>
         </Pressable>
       ))}
+      {data.debts.length > 0 && (
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)' }}>
+          <Micro style={{ letterSpacing: 1.5 }}>TOTAL DEBT</Micro>
+          <Text style={{ color: C.neg, fontSize: 13, fontWeight: '700', fontVariant: ['tabular-nums'] }}>{fmt0(totals.debtR)}</Text>
+        </View>
+      )}
       <Pressable onPress={() => { buzz(); setNewName(''); setNewKind('newDebt'); }} style={({ pressed }) => [s.ghost, pressed && { opacity: 0.6 }]}>
         <Text style={s.ghostText}>＋ debt</Text>
       </Pressable>
@@ -170,7 +218,14 @@ export default function GrowScreen() {
             },
           },
         ]}
-      />
+      >
+        {goal && (
+          <View>
+            {!!goalPlan(goal) && <Text style={s.planLine}>✦ {goalPlan(goal)}</Text>}
+            <DueChips item={goal} onSet={setDueFor('goal', goal.id)} />
+          </View>
+        )}
+      </AmountSheet>
 
       {/* ------------------------------------------------------ debt pay sheet */}
       <AmountSheet
@@ -187,6 +242,47 @@ export default function GrowScreen() {
             update((d) => { const x = d.debts.find((y) => y.id === id); if (x) x.remaining = Math.max(0, x.remaining - v); }, '✓ paid ' + fmt(v), true);
           },
         }]}
+      >
+        {debt && (
+          <View>
+            {!!debtPlan(debt) && <Text style={s.planLine}>✦ {debtPlan(debt)}</Text>}
+            <DueChips item={debt} onSet={setDueFor('debt', debt.id)} />
+          </View>
+        )}
+      </AmountSheet>
+
+      {/* ---------------------------------------------------- savings sheet */}
+      <AmountSheet
+        visible={savOpen}
+        title="🏦  Savings"
+        sub={fmt0(data.savings || 0) + ' saved'}
+        cur={data.cur}
+        onClose={() => setSavOpen(false)}
+        actions={[
+          {
+            label: '− withdraw', color: C.ink2, bg: C.fill, flex: 1,
+            onPress: (v0) => {
+              const v = Math.min(v0, data.savings || 0);
+              if (v <= 0) return;
+              setSavOpen(false);
+              update((d) => {
+                d.savings -= v;
+                d.entries.push({ id: uid(), t: Date.now(), type: 'unsave', cat: 'Savings', amt: v, acc });
+              }, '← ' + fmt(v) + ' from savings', true);
+            },
+          },
+          {
+            label: '＋ save', color: '#000', bg: C.pos, flex: 2,
+            onPress: (v) => {
+              if (v <= 0) return;
+              setSavOpen(false);
+              update((d) => {
+                d.savings = (d.savings || 0) + v;
+                d.entries.push({ id: uid(), t: Date.now(), type: 'save', cat: 'Savings', amt: v, acc });
+              }, '→ ' + fmt(v) + ' to savings 🏦', true);
+            },
+          },
+        ]}
       />
 
       {/* --------------------------------- holding: ⌫ sell / ＋ add / set value */}
@@ -204,7 +300,7 @@ export default function GrowScreen() {
               update((d) => {
                 const x = d.holdings.find((y) => y.id === h0.id);
                 if (!x) return;
-                d.entries.push({ id: uid(), t: Date.now(), type: 'got', cat: 'Other', amt: x.value, note: 'sold ' + x.name.toLowerCase(), acc: sel });
+                d.entries.push({ id: uid(), t: Date.now(), type: 'got', cat: 'Other', amt: x.value, note: 'sold ' + x.name.toLowerCase(), acc: acc });
                 d.holdings = d.holdings.filter((y) => y.id !== h0.id);
               }, '✓ sold · +' + fmt(h0.value || 0), true);
             },
@@ -217,7 +313,7 @@ export default function GrowScreen() {
               update((d) => {
                 const x = d.holdings.find((y) => y.id === h0.id);
                 if (!x) return;
-                d.entries.push({ id: uid(), t: Date.now(), type: 'invest', cat: x.name, amt: v, acc: sel });
+                d.entries.push({ id: uid(), t: Date.now(), type: 'invest', cat: x.name, amt: v, acc: acc });
                 x.invested += v; x.value += v;
               }, '↗ +' + fmt(v) + '  ' + h0.name, true);
             },
@@ -249,7 +345,7 @@ export default function GrowScreen() {
             if (kind === 'newGoal') update((d) => { d.goals.push({ id: uid(), name: nm, target: v, saved: 0, created: Date.now() }); }, '✓ ' + nm, true);
             else if (kind === 'newDebt') update((d) => { d.debts.push({ id: uid(), name: nm, total: v, remaining: v, rate: 0, min: 0 }); }, '✓ ' + nm, true);
             else update((d) => {
-              d.entries.push({ id: uid(), t: Date.now(), type: 'invest', cat: nm, amt: v, acc: sel });
+              d.entries.push({ id: uid(), t: Date.now(), type: 'invest', cat: nm, amt: v, acc: acc });
               d.holdings.push({ id: uid(), name: nm, invested: v, value: v });
             }, '↗ ' + nm, true);
           },
@@ -270,5 +366,7 @@ const s = StyleSheet.create({
   empty: { color: C.ink4, fontSize: 13, paddingVertical: 14 },
   ghost: { paddingVertical: 12 },
   ghostText: { color: C.ink3, fontSize: 13, fontWeight: '600' },
+  planLine: { color: C.ink2, fontSize: 12.5, lineHeight: 19, marginTop: 12, fontVariant: ['tabular-nums'] },
+  dueChip: { height: 34, paddingHorizontal: 12, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.07)' },
   netRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)' },
 });

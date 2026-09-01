@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Platform, Pressable, SafeAreaView, StatusBar as RNStatusBar, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, StatusBar as RNStatusBar, StyleSheet, Text, TextInput, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { C } from './src/theme';
 import { StoreProvider, buzz, useStore } from './src/store';
-import { fmtDate, fmt0 } from './src/util';
+import { SP, SRC, fmtDate, fmt0 } from './src/util';
 import { analyze, buildInsights } from './src/logic';
 import LogScreen from './src/screens/LogScreen';
 import PlanScreen from './src/screens/PlanScreen';
@@ -19,8 +19,106 @@ const TABS = [
   { id: 'more', glyph: '≡', size: 18 },
 ];
 
-// full-screen 4-digit PIN lock (red flash on wrong PIN)
-function LockScreen({ pin, onUnlock }) {
+// ---------------------------------------------- 3-step first-run onboarding --
+function Onboarding() {
+  const { onb, setOnb, finishOnb } = useStore();
+  if (!onb) return null;
+  const nameOk = !!onb.name.trim();
+
+  const chip = (on) => [s.onbChip, on && { backgroundColor: 'rgba(255,255,255,0.12)', borderColor: C.ink }];
+
+  return (
+    <View style={s.onb}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={{ flexGrow: 1, paddingTop: 60, paddingHorizontal: 28, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
+          <Text style={s.onbBrand}>POCKET</Text>
+
+          {onb.step === 0 && (
+            <View style={{ flex: 1 }}>
+              <Text style={s.onbQ}>what should{'\n'}Pocket call you?</Text>
+              <TextInput
+                value={onb.name}
+                onChangeText={(v) => setOnb({ ...onb, name: v })}
+                placeholder="your name"
+                placeholderTextColor={C.ink4}
+                style={s.onbName}
+              />
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 24 }}>
+                {['Rs', '₹', '$', '€'].map((c) => (
+                  <Pressable key={c} onPress={() => { buzz(); setOnb({ ...onb, cur: c }); }} style={({ pressed }) => [s.onbCur, onb.cur === c && { backgroundColor: 'rgba(255,255,255,0.12)', borderColor: C.ink }, pressed && { transform: [{ scale: 0.95 }] }]}>
+                    <Text style={{ color: C.ink, fontSize: 16, fontWeight: '700' }}>{c}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              <Text style={{ color: C.ink4, fontSize: 11, marginTop: 8 }}>your currency</Text>
+              <View style={{ flex: 1 }} />
+              <Pressable
+                onPress={() => { if (nameOk) { buzz(); setOnb({ ...onb, step: 1 }); } }}
+                style={({ pressed }) => [s.onbNext, { backgroundColor: nameOk ? C.ink : C.fill }, pressed && { opacity: 0.85 }]}
+              >
+                <Text style={{ color: nameOk ? '#000' : C.ink4, fontSize: 17, fontWeight: '700' }}>continue</Text>
+              </Pressable>
+            </View>
+          )}
+
+          {onb.step === 1 && (
+            <View style={{ flex: 1 }}>
+              <Text style={s.onbQ}>{'where does your money come from' + (onb.name.trim() ? ', ' + onb.name.trim() : '') + '?'}</Text>
+              <Text style={s.onbSub}>pick all that apply — these become your ＋ income categories</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 28 }}>
+                {SRC.map(([e, n]) => (
+                  <Pressable
+                    key={n}
+                    onPress={() => { buzz(); const s3 = onb.sources.includes(n) ? onb.sources.filter((x) => x !== n) : [...onb.sources, n]; setOnb({ ...onb, sources: s3 }); }}
+                    style={({ pressed }) => [chip(onb.sources.includes(n)), pressed && { transform: [{ scale: 0.95 }] }]}
+                  >
+                    <Text style={{ fontSize: 17 }}>{e}</Text>
+                    <Text style={{ color: C.ink, fontSize: 14, fontWeight: '600' }}>{n}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              <View style={{ flex: 1 }} />
+              <Pressable
+                onPress={() => { if (onb.sources.length) { buzz(); setOnb({ ...onb, step: 2 }); } }}
+                style={({ pressed }) => [s.onbNext, { backgroundColor: onb.sources.length ? C.ink : C.fill }, pressed && { opacity: 0.85 }]}
+              >
+                <Text style={{ color: onb.sources.length ? '#000' : C.ink4, fontSize: 17, fontWeight: '700' }}>continue</Text>
+              </Pressable>
+              <Pressable onPress={() => { buzz(); finishOnb(onb); }} style={({ pressed }) => [{ paddingTop: 16, alignItems: 'center' }, pressed && { opacity: 0.6 }]}>
+                <Text style={{ color: C.ink3, fontSize: 13, fontWeight: '600' }}>skip for now</Text>
+              </Pressable>
+            </View>
+          )}
+
+          {onb.step === 2 && (
+            <View style={{ flex: 1 }}>
+              <Text style={s.onbQ}>{'what do you spend on most' + (onb.name.trim() ? ', ' + onb.name.trim() : '') + '?'}</Text>
+              <Text style={s.onbSub}>pick up to three — they sit first on your keypad</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 28 }}>
+                {SP.filter((x) => x[1] !== 'Other').map(([e, n]) => (
+                  <Pressable
+                    key={n}
+                    onPress={() => { buzz(); const t3 = onb.tops.includes(n) ? onb.tops.filter((x) => x !== n) : [...onb.tops, n].slice(0, 3); setOnb({ ...onb, tops: t3 }); }}
+                    style={({ pressed }) => [chip(onb.tops.includes(n)), pressed && { transform: [{ scale: 0.95 }] }]}
+                  >
+                    <Text style={{ fontSize: 17 }}>{e}</Text>
+                    <Text style={{ color: C.ink, fontSize: 14, fontWeight: '600' }}>{n}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              <View style={{ flex: 1 }} />
+              <Pressable onPress={() => { buzz(); finishOnb(onb); }} style={({ pressed }) => [s.onbNext, { backgroundColor: C.pos }, pressed && { opacity: 0.85 }]}>
+                <Text style={{ color: '#000', fontSize: 17, fontWeight: '700' }}>start</Text>
+              </Pressable>
+            </View>
+          )}
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
+  );
+}
+
+function LockScreen({ pin, brand, onUnlock }) {
   const [val, setVal] = useState('');
   const [err, setErr] = useState(false);
 
@@ -36,7 +134,7 @@ function LockScreen({ pin, onUnlock }) {
 
   return (
     <View style={s.lock}>
-      <Text style={s.lockBrand}>POCKET</Text>
+      <Text style={s.lockBrand}>{brand}</Text>
       <View style={s.dots}>
         {[0, 1, 2, 3].map((i) => (
           <View key={i} style={[s.dot, { backgroundColor: err ? C.neg : i < val.length ? C.ink : 'rgba(255,255,255,0.15)' }]} />
@@ -54,7 +152,7 @@ function LockScreen({ pin, onUnlock }) {
 }
 
 function Root() {
-  const { ready, data, tab, setTab, toast, undo, sweepOffer, takeSweepOffer, catsFor } = useStore();
+  const { ready, data, tab, setTab, toast, undo, sweepOffer, takeSweepOffer, catsFor, onb } = useStore();
   const [locked, setLocked] = useState(false);
   const [lockChecked, setLockChecked] = useState(false);
 
@@ -65,10 +163,9 @@ function Root() {
     }
   }, [ready]);
 
-  // red dots: ▤ when a bill is due · ✦ when a red-severity insight exists
   const dueDot = useMemo(() => {
     const todayS = fmtDate(new Date());
-    return data.recurring.some((r) => r.next <= todayS) && tab !== 'plan';
+    return data.recurring.some((r) => r.next <= todayS && r.amt > 0) && tab !== 'plan';
   }, [data.recurring, tab]);
 
   const advDot = useMemo(() => {
@@ -79,11 +176,13 @@ function Root() {
 
   if (!ready) return <View style={{ flex: 1, backgroundColor: C.bg }} />;
 
+  const brand = data.profile && data.profile.name ? 'POCKET · ' + data.profile.name.toUpperCase() : 'POCKET';
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bg, paddingTop: Platform.OS === 'android' ? RNStatusBar.currentHeight || 24 : 0 }}>
       <StatusBar style="light" backgroundColor={C.bg} />
       {locked ? (
-        <LockScreen pin={data.pin} onUnlock={() => setLocked(false)} />
+        <LockScreen pin={data.pin} brand={brand} onUnlock={() => setLocked(false)} />
       ) : (
         <View style={{ flex: 1 }}>
           <View style={{ flex: 1 }}>
@@ -94,7 +193,6 @@ function Root() {
             {tab === 'more' && <MoreScreen />}
           </View>
 
-          {/* glyph-only tab bar: ＋ ▤ ✦ ◎ ≡ */}
           <View style={s.nav}>
             {TABS.map((t) => (
               <Pressable key={t.id} onPress={() => { buzz(); setTab(t.id); }} style={s.navBtn} hitSlop={6}>
@@ -109,8 +207,8 @@ function Root() {
         </View>
       )}
 
-      {/* salary sweep offer: one-tap 20% to goal, 5s */}
-      {!locked && sweepOffer && (
+      {/* salary sweep offer */}
+      {!locked && !onb && sweepOffer && (
         <View style={s.offerWrap} pointerEvents="box-none">
           <Pressable onPress={takeSweepOffer} style={({ pressed }) => [s.offer, pressed && { backgroundColor: C.posSoft }]}>
             <Text style={{ color: C.pos, fontSize: 14 }}>◎</Text>
@@ -121,7 +219,7 @@ function Root() {
         </View>
       )}
 
-      {/* toast / undo pill */}
+      {/* toast / undo */}
       {toast && (
         <View style={s.toastWrap} pointerEvents="box-none">
           <Pressable style={s.toast} onPress={toast.undoable ? undo : undefined}>
@@ -130,6 +228,9 @@ function Root() {
           </Pressable>
         </View>
       )}
+
+      {/* first-run / edit-profile onboarding overlay */}
+      {!locked && <Onboarding />}
     </SafeAreaView>
   );
 }
@@ -169,6 +270,15 @@ const s = StyleSheet.create({
   },
   toastText: { color: C.ink, fontSize: 13, fontWeight: '600', fontVariant: ['tabular-nums'] },
   toastUndo: { color: C.pos, fontSize: 11, fontWeight: '800', letterSpacing: 1.5 },
+
+  onb: { ...StyleSheet.absoluteFillObject, backgroundColor: '#000', zIndex: 110 },
+  onbBrand: { color: C.ink3, fontSize: 10, fontWeight: '700', letterSpacing: 2 },
+  onbQ: { color: C.ink, fontSize: 30, fontWeight: '700', letterSpacing: -0.5, marginTop: 44, lineHeight: 36 },
+  onbSub: { color: C.ink3, fontSize: 13, marginTop: 10, lineHeight: 18 },
+  onbName: { borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.14)', color: C.ink, fontSize: 22, fontWeight: '600', paddingVertical: 14, marginTop: 36 },
+  onbCur: { width: 52, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1.5, borderColor: 'transparent' },
+  onbChip: { flexDirection: 'row', alignItems: 'center', gap: 8, height: 48, paddingHorizontal: 16, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1.5, borderColor: 'transparent' },
+  onbNext: { height: 60, borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginTop: 24 },
 
   lock: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 30 },
   lockBrand: { color: C.ink3, fontSize: 10, fontWeight: '700', letterSpacing: 2 },

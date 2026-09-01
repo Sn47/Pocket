@@ -7,7 +7,7 @@ import { EmojiPicker, Micro, Sheet } from '../ui';
 import { Donut, LineChart, MonthBars, Sparkline } from '../charts';
 
 export default function MoreScreen() {
-  const { data, update, accName, totals, show, restoreDemo } = useStore();
+  const { data, update, accName, totals, show, restoreDemo, setOnb } = useStore();
 
   const [chart, setChart] = useState(null); // 'cash'|'net'|'months' or {donut, ym, label}
   const [moodOpen, setMoodOpen] = useState(false);
@@ -81,9 +81,15 @@ export default function MoreScreen() {
 
   const cycleCur = () => update((d) => { d.cur = CURRENCIES[(CURRENCIES.indexOf(d.cur) + 1) % CURRENCIES.length]; });
 
+  // erase everything → truly fresh + onboarding runs again (v3)
   const wipeYes = () => {
     setConfirmWipe(false);
-    update((d) => { d.entries = []; d.goals = []; d.debts = []; d.holdings = []; d.recurring = []; d.snapshots = {}; d.pins = []; }, 'Erased');
+    update((d) => {
+      d.entries = []; d.goals = []; d.debts = []; d.holdings = []; d.recurring = [];
+      d.snapshots = {}; d.pins = []; d.savings = 0; d.profile = null;
+      for (const a of d.accounts) a.init = 0;
+    }, 'Erased');
+    setOnb({ step: 0, name: '', sources: [], tops: [], cur: data.cur });
   };
 
   const pinDigit = (k) => {
@@ -121,6 +127,17 @@ export default function MoreScreen() {
       </View>
 
       <Micro style={{ marginTop: 26, letterSpacing: 1.8 }}>SETTINGS</Micro>
+      {row({
+        key: 'profile', glyph: '☺', name: 'Name & income',
+        sub: data.profile ? data.profile.name + (data.profile.sources && data.profile.sources.length ? ' · ' + data.profile.sources.length + (data.profile.sources.length === 1 ? ' source' : ' sources') : '') : 'not set',
+        onTap: () => setOnb({
+          step: 0,
+          name: (data.profile && data.profile.name) || '',
+          sources: (data.profile && data.profile.sources) || [],
+          tops: (data.profile && data.profile.tops) || [],
+          cur: data.cur,
+        }),
+      })}
       {row({
         key: 'sweep', glyph: '◎', name: 'Round-up sweeps', sub: 'spare change → nearest goal',
         right: <Text style={{ color: data.sweep === false ? C.ink3 : C.pos, fontSize: 12, fontWeight: '700', minWidth: 26, textAlign: 'right' }}>{data.sweep === false ? 'off' : 'on'}</Text>,
@@ -162,7 +179,7 @@ export default function MoreScreen() {
       {row({ key: 'demo', glyph: '↺', name: 'Restore sample data', onTap: restoreDemo })}
       {row({ key: 'wipe', glyph: '⌫', glyphColor: C.neg, name: 'Erase everything', nameColor: C.neg, onTap: () => setConfirmWipe(true), last: true })}
 
-      <Text style={s.foot}>All data stays on this phone.</Text>
+      <Text style={s.foot}>All data stays on this phone{data.profile && data.profile.name ? ', ' + data.profile.name : ''}.</Text>
 
       {/* chart sheets */}
       <Sheet visible={chart === 'cash'} onClose={() => setChart(null)} title="∿  Cash" sub="90 days">

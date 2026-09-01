@@ -141,7 +141,7 @@ export const padAdvance = (amt, k) => {
   return Math.min(amt * 10 + Number(k) * 100, 999999999900);
 };
 
-export function KeyPad({ onKey, onClear, keyH = 52, radius = 16 }) {
+export function KeyPad({ onKey, onClear, keyH = 52, radius = 16, big = false }) {
   return (
     <View style={u.pad}>
       {['1', '2', '3', '4', '5', '6', '7', '8', '9', '00', '0', '⌫'].map((k) => {
@@ -154,7 +154,7 @@ export function KeyPad({ onKey, onClear, keyH = 52, radius = 16 }) {
             delayLongPress={450}
             style={({ pressed }) => [u.key, { height: keyH, borderRadius: radius }, pressed && u.keyPress]}
           >
-            <Text style={[u.keyText, alt && { color: C.ink3, fontSize: 19 }]}>{k}</Text>
+            <Text style={[u.keyText, big && { fontSize: 30 }, alt && { color: C.ink3, fontSize: big ? 24 : 19 }]}>{k}</Text>
           </Pressable>
         );
       })}

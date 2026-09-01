@@ -37,13 +37,13 @@ export function analyze(d, now = new Date()) {
   for (const a of d.accounts) {
     let b = a.init || 0;
     for (const e of d.entries) {
-      if (e.type === 'got') { if (e.acc === a.id) b += e.amt; }
-      else if (e.type === 'spent' || e.type === 'invest') { if (e.acc === a.id) b -= e.amt; }
-      else if (e.type === 'transfer') { if (e.from === a.id) b -= e.amt; else if (e.to === a.id) b += e.amt; }
+      if (e.acc !== a.id) continue;
+      if (e.type === 'got' || e.type === 'unsave') b += e.amt;
+      else if (e.type === 'spent' || e.type === 'invest' || e.type === 'save') b -= e.amt;
     }
     cashNow += b;
   }
-  const net = cashNow + invV - debtR;
+  const net = cashNow + (d.savings || 0) + invV - debtR;
 
   // 12 months of spent/got
   const months = [];
@@ -373,17 +373,18 @@ export function mindfulLine(d, A, now = new Date()) {
   let logs = 0;
   for (const e of d.entries) if (monthOf(e.t) === A.ym && e.type !== 'transfer') logs++;
   const topC = A.catList[0];
+  const nm = d.profile && d.profile.name ? d.profile.name : '';
   const lines = [
-    'You looked at your money ' + logs + ' times this month. Noticing is most of the work.',
+    (nm ? nm + ', you' : 'You') + ' looked at your money ' + logs + ' times this month. Noticing is most of the work.',
     "Every entry here was a decision. The next one hasn't been made yet.",
     topC ? 'If ' + topC + ' spending matched how much you think about it, would it be ' + Math.round(((A.byCat[topC] || 0) / (A.mSpent || 1)) * 100) + '%?' : 'A quiet ledger is not the same as a quiet mind.',
     'The balance is a number. The pattern underneath it is the truth.',
-    'Small amounts logged honestly beat big plans made loudly.',
+    nm ? "Small amounts logged honestly beat big plans made loudly. That's all this is, " + nm + '.' : 'Small amounts logged honestly beat big plans made loudly.',
   ];
   return lines[now.getDate() % lines.length];
 }
 
-export function scoreLever(A) {
+export function scoreLever(A, name) {
   const fs = [
     [A.f1, 'raising your savings rate moves the score most'],
     [A.f2, 'build cash runway toward 6 months'],
@@ -391,7 +392,32 @@ export function scoreLever(A) {
     [A.f4, 'stay under budget in more categories'],
   ].filter((x) => x[1]);
   fs.sort((a, b) => a[0] - b[0]);
-  return 'Biggest lever: ' + fs[0][1];
+  return (name ? name + ' — biggest lever: ' : 'Biggest lever: ') + fs[0][1];
 }
 
 export const GRAY_AT = (i) => GRAYS[Math.min(i, 6)];
+
+// -------------------------------------------------- v3 due-date planning --
+export const monthsTo = (due, dflt) => {
+  if (!due) return dflt || 6;
+  return Math.max(1, Math.round((new Date(due).getTime() - Date.now()) / (30 * day)));
+};
+
+export const dueLabel = (due) => new Date(due).toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+
+// "put ~X/mo aside and it closes in ~N mo" — rounded up to 50s (5000 cents)
+export const goalPlan = (g) => {
+  const rem = Math.max(0, (g.target || 0) - (g.saved || 0));
+  if (rem <= 0) return null;
+  const ml = monthsTo(g.due, 6);
+  const per = Math.max(5000, Math.ceil(rem / ml / 5000) * 5000);
+  return 'put ~' + fmt0(per) + '/mo aside' + (g.due ? ' to close it by ' + dueLabel(g.due) : ' and it closes in ~' + ml + ' mo');
+};
+
+// debt plan includes interest: pay = remaining × (1 + rate·m/1200) / m
+export const debtPlan = (x) => {
+  if ((x.remaining || 0) <= 0) return null;
+  const ml = monthsTo(x.due, 12);
+  const pay = Math.max(5000, Math.ceil((x.remaining * (1 + ((x.rate || 0) * ml) / 1200)) / ml / 5000) * 5000);
+  return 'pay ~' + fmt0(pay) + '/mo to clear it ' + (x.due ? 'by ' + dueLabel(x.due) : 'in ~' + ml + ' mo');
+};

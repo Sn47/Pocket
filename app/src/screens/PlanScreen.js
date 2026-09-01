@@ -2,17 +2,17 @@ import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { C } from '../theme';
 import { buzz, useStore } from '../store';
-import { adv, emojiFor, fmt, fmt0, fmtDate, monthOf, nextMs, uid, validDate } from '../util';
-import { AmountSheet, EmojiPicker, Field, Micro, Sheet, KeyPad, padAdvance } from '../ui';
+import { adv, allCats, emojiFor, fmt, fmt0, fmtDate, monthOf, nextMs, uid } from '../util';
+import { AmountSheet, EmojiPicker, Field, Micro, Sheet } from '../ui';
 import { analyze, suggestRec } from '../logic';
 
 export default function PlanScreen() {
-  const { data, update, money, catsFor } = useStore();
+  const { data, acc, update, catsFor } = useStore();
 
   const [limitSheet, setLimitSheet] = useState(null); // { cat, emoji }
-  const [newBudget, setNewBudget] = useState(null); // { cat } — pick category + limit
   const [recSheet, setRecSheet] = useState(null); // recurring id
-  const [newRec, setNewRec] = useState(null); // { name, type, cat, freq, next, auto }
+  const [newRec, setNewRec] = useState(null); // { name } — v3: simple monthly spend
+  const [newBud, setNewBud] = useState(null); // { cat } or { mode:'new', emoji, name }
 
   const ym = monthOf(Date.now());
   const byCat = useMemo(() => {
@@ -22,15 +22,14 @@ export default function PlanScreen() {
   }, [data.entries]);
 
   const todayS = fmtDate(new Date());
-  const dues = data.recurring.filter((r) => r.next <= todayS);
+  const dues = data.recurring.filter((r) => r.next <= todayS && r.amt > 0);
   const recs = [...data.recurring].sort((a, b) => (a.next < b.next ? -1 : 1));
   const recObj = recSheet ? data.recurring.find((r) => r.id === recSheet) : null;
 
-  // only budgeted categories are listed — removing a limit removes the row
-  const ordered = [...catsFor('spent'), ...Object.keys(data.budgets)];
-  const cats = [...new Set(ordered)].filter((c) => c !== 'Other' && data.budgets[c] > 0);
+  // v3: one row per category (except Other) — unbudgeted rows show spend only
+  const cats = allCats(data).filter(([, n]) => n !== 'Other');
   let totLim = 0, totSp = 0;
-  for (const c of cats) { totLim += data.budgets[c] || 0; totSp += byCat[c] || 0; }
+  for (const [, n] of cats) { totLim += data.budgets[n] || 0; totSp += byCat[n] || 0; }
   const left = totLim - totSp;
 
   const recName = (r) => r.note || r.name || r.cat;
@@ -52,7 +51,6 @@ export default function PlanScreen() {
     if (x) x.next = fmtDate(new Date(Date.now() + 864e5));
   }, '⏰ tomorrow', true);
 
-  // v2.1: auto-detected recurring suggestion + budget pace trends
   const A = useMemo(() => analyze(data), [data]);
   const suggest = useMemo(() => suggestRec(data, A), [data]);
   const now = new Date();
@@ -72,7 +70,7 @@ export default function PlanScreen() {
     <ScrollView contentContainerStyle={s.wrap}>
       <Micro>PLAN</Micro>
 
-      {/* -------------------------------------------------------- due rows */}
+      {/* due rows: ✓ log · ✕ skip · hold ✕ snooze */}
       {dues.map((r) => (
         <View key={r.id} style={s.due}>
           <Text style={{ fontSize: 18 }}>⏰</Text>
@@ -94,7 +92,7 @@ export default function PlanScreen() {
         </View>
       ))}
 
-      {/* --------------------------------------- auto-detected recurring */}
+      {/* auto-detected recurring suggestion */}
       {suggest && data.suggestOn !== false && (
         <View style={s.due}>
           <Text style={{ fontSize: 16, width: 28, textAlign: 'center', color: C.ink3 }}>🔁</Text>
@@ -125,12 +123,11 @@ export default function PlanScreen() {
         </View>
       )}
 
-      {/* ---------------------------------------------------------- budgets */}
+      {/* budgets */}
       <Micro style={{ marginTop: 26, letterSpacing: 1.8 }}>
-        {'BUDGETS · ' + new Date().toLocaleDateString(undefined, { month: 'long' }).toUpperCase()}
+        {'BUDGETS · ' + now.toLocaleDateString(undefined, { month: 'long' }).toUpperCase()}
       </Micro>
-      {!cats.length && <Text style={{ color: C.ink4, fontSize: 13, paddingVertical: 14 }}>No budgets. ＋ budget to start one.</Text>}
-      {cats.map((c) => {
+      {cats.map(([em, c]) => {
         const sp = byCat[c] || 0;
         const lim = data.budgets[c] || 0;
         const over = lim > 0 && sp > lim;
@@ -138,12 +135,12 @@ export default function PlanScreen() {
         return (
           <Pressable
             key={c}
-            onPress={() => { buzz(); setLimitSheet({ cat: c, emoji: emojiFor(c) }); }}
-            onLongPress={lim > 0 ? () => update((d) => { delete d.budgets[c]; }, emojiFor(c) + ' limit removed', true) : undefined}
+            onPress={() => { buzz(); setLimitSheet({ cat: c, emoji: em }); }}
+            onLongPress={lim > 0 ? () => update((d) => { delete d.budgets[c]; }, em + ' limit removed', true) : undefined}
             delayLongPress={450}
             style={({ pressed }) => [s.bRow, pressed && { opacity: 0.55 }]}
           >
-            <Text style={{ fontSize: 20, width: 28, textAlign: 'center', color: C.ink2 }}>{emojiFor(c)}</Text>
+            <Text style={{ fontSize: 20, width: 28, textAlign: 'center', color: C.ink2 }}>{em}</Text>
             <View style={s.bTrack}>
               <View style={{ width: lim ? Math.min(100, (sp / lim) * 100) + '%' : '0%', height: 3, borderRadius: 2, backgroundColor: over ? C.neg : C.pos }} />
             </View>
@@ -153,20 +150,20 @@ export default function PlanScreen() {
           </Pressable>
         );
       })}
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Pressable onPress={() => { buzz(); setNewBudget({ cat: '' }); }} style={({ pressed }) => [s.ghost, pressed && { opacity: 0.6 }]}>
-          <Text style={s.ghostText}>＋ budget</Text>
-        </Pressable>
-        <Text style={s.hint}>tap to edit · hold to remove</Text>
-      </View>
       <View style={s.leftRow}>
         <Micro style={{ letterSpacing: 1.5 }}>LEFT THIS MONTH</Micro>
         <Text style={{ color: left < 0 ? C.neg : C.pos, fontSize: 13, fontWeight: '700', fontVariant: ['tabular-nums'] }}>
           {(left < 0 ? '−' : '') + fmt0(left)}
         </Text>
       </View>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Pressable onPress={() => { buzz(); setNewBud({ cat: null }); }} style={({ pressed }) => [s.ghost, pressed && { opacity: 0.6 }]}>
+          <Text style={s.ghostText}>＋ budget</Text>
+        </Pressable>
+        <Text style={s.hint}>tap to edit · hold to remove</Text>
+      </View>
 
-      {/* -------------------------------------------------------- recurring */}
+      {/* recurring */}
       <Micro style={{ marginTop: 26, letterSpacing: 1.8 }}>RECURRING</Micro>
       {!recs.length && <Text style={{ color: C.ink4, fontSize: 13, paddingVertical: 14 }}>Nothing scheduled.</Text>}
       {recs.map((r) => {
@@ -190,17 +187,14 @@ export default function PlanScreen() {
           </Pressable>
         );
       })}
-      <Pressable
-        onPress={() => { buzz(); setNewRec({ name: '', type: 'spent', cat: 'Bills', freq: 'monthly', next: fmtDate(new Date()), auto: true }); }}
-        style={({ pressed }) => [s.ghost, pressed && { opacity: 0.6 }]}
-      >
+      <Pressable onPress={() => { buzz(); setNewRec({ name: '' }); }} style={({ pressed }) => [s.ghost, pressed && { opacity: 0.6 }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <Text style={s.ghostText}>＋ recurring</Text>
           <Text style={s.hint}>tap for actions · hold to delete</Text>
         </View>
       </Pressable>
 
-      {/* ------------------------------------------------- budget limit sheet */}
+      {/* budget limit sheet — ⌫ remove / set */}
       <AmountSheet
         visible={!!limitSheet}
         title={limitSheet ? limitSheet.emoji + '  ' + limitSheet.cat : ''}
@@ -209,16 +203,14 @@ export default function PlanScreen() {
         initial={limitSheet ? data.budgets[limitSheet.cat] || 0 : 0}
         onClose={() => setLimitSheet(null)}
         actions={[
-          ...(limitSheet && data.budgets[limitSheet.cat]
-            ? [{
-                label: '⌫', color: C.neg, bg: C.negSoft, flex: 1,
-                onPress: () => {
-                  const c = limitSheet.cat;
-                  setLimitSheet(null);
-                  update((d) => { delete d.budgets[c]; }, emojiFor(c) + ' limit removed', true);
-                },
-              }]
-            : []),
+          {
+            label: '⌫ remove', color: C.neg, bg: C.negSoft, flex: 1,
+            onPress: () => {
+              const c = limitSheet.cat;
+              setLimitSheet(null);
+              update((d) => { delete d.budgets[c]; }, 'limit removed', true);
+            },
+          },
           {
             label: 'set', color: '#000', bg: C.ink, flex: 2,
             onPress: (v) => {
@@ -230,172 +222,62 @@ export default function PlanScreen() {
         ]}
       />
 
-      {/* ------------------------------------------------- new recurring sheet */}
+      {/* ＋ budget / ＋ new category sheet */}
       <AmountSheet
-        visible={!!newRec}
-        title="🔁  New recurring"
-        sub="amount"
+        visible={!!newBud}
+        title={newBud && newBud.mode === 'new' ? '＋  New category' : '＋  New budget'}
+        sub={newBud && newBud.mode === 'new' ? 'name it, pick an emoji, set a limit (optional)' : newBud && newBud.cat ? 'monthly limit for ' + newBud.cat : 'pick a category'}
         cur={data.cur}
-        onClose={() => setNewRec(null)}
+        onClose={() => setNewBud(null)}
         actions={[{
-          label: 'create', color: '#000', bg: C.ink, flex: 1,
+          label: newBud && newBud.mode === 'new' ? 'create' : 'set limit',
+          color: '#000', bg: C.ink, flex: 1,
           onPress: (v) => {
-            if (!newRec) return;
-            const nm = newRec.name.trim();
-            if (v <= 0 || !nm || !validDate(newRec.next)) return;
-            let cat = newRec.cat;
-            let newCatName = null, newCatEmoji = null;
-            if (newRec.addingCat) {
-              newCatName = (newRec.catName || '').trim();
-              newCatEmoji = (newRec.catEmoji || '').trim();
-              if (!newCatName) return;
-              cat = newCatName;
-            }
-            const o = { id: uid(), type: newRec.type, cat, amt: v, note: nm, freq: newRec.freq, next: newRec.next, auto: newRec.auto, acc: data.accounts[0].id };
-            const tp = newRec.type;
-            setNewRec(null);
-            update((d) => {
-              if (newCatName && !d.cats[tp].includes(newCatName)) {
-                d.cats[tp] = d.cats[tp].concat(newCatName);
-                if (newCatEmoji) d.catEmoji[newCatName] = newCatEmoji;
-              }
-              d.recurring.push(o);
-            }, '✓ ' + nm, true);
-          },
-        }]}
-      >
-        {newRec && (
-          <View>
-            <Field placeholder="name" value={newRec.name} onChangeText={(v) => setNewRec({ ...newRec, name: v })} />
-            <View style={{ flexDirection: 'row', gap: 6, marginTop: 12 }}>
-              {[['spent', '−', C.neg], ['got', '＋', C.pos]].map(([tp, g, col]) => (
-                <Pressable
-                  key={tp}
-                  onPress={() => { buzz(); setNewRec({ ...newRec, type: tp, cat: catsFor(tp)[0] }); }}
-                  style={({ pressed }) => [s.tChip, newRec.type === tp && { backgroundColor: 'rgba(255,255,255,0.1)', borderColor: col }, pressed && { transform: [{ scale: 0.9 }] }]}
-                >
-                  <Text style={{ color: col, fontSize: 19, fontWeight: '700' }}>{g}</Text>
-                </Pressable>
-              ))}
-              <View style={{ width: 1, height: 22, alignSelf: 'center', backgroundColor: 'rgba(255,255,255,0.12)' }} />
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingHorizontal: 2 }}>
-                {catsFor(newRec.type).map((c) => {
-                  const e2 = emojiFor(c);
-                  const on = !newRec.addingCat && newRec.cat === c;
-                  return (
-                    <Pressable
-                      key={c}
-                      onPress={() => { buzz(); setNewRec({ ...newRec, cat: c, addingCat: false }); }}
-                      style={({ pressed }) => [s.tChip, on && { backgroundColor: 'rgba(255,255,255,0.1)', borderColor: C.ink }, pressed && { transform: [{ scale: 0.9 }] }]}
-                    >
-                      <Text style={{ fontSize: e2 === '✱' ? 15 : 20, color: C.ink2, fontWeight: '700' }}>{e2}</Text>
-                    </Pressable>
-                  );
-                })}
-                <Pressable
-                  onPress={() => { buzz(); setNewRec({ ...newRec, addingCat: true, catEmoji: '', catName: '' }); }}
-                  style={({ pressed }) => [s.tChip, newRec.addingCat && { backgroundColor: 'rgba(255,255,255,0.1)', borderColor: C.ink }, pressed && { transform: [{ scale: 0.9 }] }]}
-                >
-                  <Text style={{ fontSize: 18, color: C.ink4, fontWeight: '700' }}>＋</Text>
-                </Pressable>
-              </ScrollView>
-            </View>
-            {newRec.addingCat && (
-              <View>
-                <EmojiPicker selected={newRec.catEmoji} onPick={(em) => setNewRec({ ...newRec, catEmoji: em })} />
-                <View style={{ flexDirection: 'row', gap: 12, alignItems: 'flex-end' }}>
-                  <Text style={{ fontSize: 22, width: 36, textAlign: 'center', paddingBottom: 8, color: C.ink4 }}>{newRec.catEmoji || '✱'}</Text>
-                  <Field placeholder="new category name" value={newRec.catName} onChangeText={(v) => setNewRec({ ...newRec, catName: v })} style={{ flex: 1 }} />
-                </View>
-              </View>
-            )}
-            <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
-              {['daily', 'weekly', 'monthly', 'yearly'].map((f) => (
-                <Pressable
-                  key={f}
-                  onPress={() => { buzz(); setNewRec({ ...newRec, freq: f }); }}
-                  style={({ pressed }) => [s.fChip, newRec.freq === f && { backgroundColor: 'rgba(255,255,255,0.1)' }, pressed && { opacity: 0.6 }]}
-                >
-                  <Text style={{ color: newRec.freq === f ? C.ink : C.ink3, fontSize: 12, fontWeight: '600' }}>{f}</Text>
-                </Pressable>
-              ))}
-            </View>
-            <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
-              <Field
-                placeholder="next YYYY-MM-DD"
-                value={newRec.next}
-                onChangeText={(v) => setNewRec({ ...newRec, next: v })}
-                style={{ flex: 1, fontVariant: ['tabular-nums'] }}
-              />
-              <Pressable onPress={() => { buzz(); setNewRec({ ...newRec, auto: !newRec.auto }); }} hitSlop={10} style={{ flexDirection: 'row', gap: 8, alignItems: 'center', paddingTop: 8 }}>
-                <Text style={{ color: C.ink3, fontSize: 11 }}>logs itself</Text>
-                <Text style={{ color: newRec.auto ? C.pos : C.ink4, fontSize: 12, fontWeight: '700' }}>{newRec.auto ? 'on' : 'off'}</Text>
-              </Pressable>
-            </View>
-          </View>
-        )}
-      </AmountSheet>
-
-      {/* ---------------------------------------------------- ＋ budget sheet */}
-      <AmountSheet
-        visible={!!newBudget}
-        title="＋  New budget"
-        sub="pick a category, type the limit"
-        cur={data.cur}
-        onClose={() => setNewBudget(null)}
-        actions={[{
-          label: 'set', color: '#000', bg: C.ink, flex: 1,
-          onPress: (v) => {
-            if (v <= 0) return;
-            const nb = newBudget;
-            if (nb.adding) {
-              const nm = (nb.name || '').trim();
-              const em = (nb.emoji || '').trim();
-              if (!nm || catsFor('spent').includes(nm)) return;
-              setNewBudget(null);
+            const nb = newBud;
+            if (!nb) return;
+            if (nb.mode === 'new') {
+              const nm0 = (nb.name || '').trim();
+              if (!nm0) return;
+              const NM = nm0.charAt(0).toUpperCase() + nm0.slice(1);
+              const em = nb.emoji || '✱';
+              setNewBud(null);
               update((d) => {
-                d.cats.spent = d.cats.spent.concat(nm);
-                if (em) d.catEmoji[nm] = em;
-                d.budgets[nm] = v;
-              }, '✓ ' + (em || '✱') + ' ' + nm + ' limit set', true);
+                if (!d.cats.some((x) => x[1].toLowerCase() === NM.toLowerCase())) d.cats.push([em, NM]);
+                if (v > 0) d.budgets[NM] = v;
+              }, '✓ ' + em + ' ' + NM, true);
               return;
             }
-            if (!nb.cat) return;
-            setNewBudget(null);
-            update((d) => { d.budgets[nb.cat] = v; }, '✓ ' + emojiFor(nb.cat) + ' limit set', true);
+            if (v <= 0 || !nb.cat) return;
+            setNewBud(null);
+            update((d) => { d.budgets[nb.cat] = v; }, '✓ ' + nb.cat + ' limit set', true);
           },
         }]}
       >
-        {newBudget && (
+        {newBud && (
           <View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }} contentContainerStyle={{ gap: 6, paddingVertical: 3, paddingHorizontal: 2 }}>
-              {catsFor('spent').filter((c) => c !== 'Other').map((c) => {
-                const e2 = emojiFor(c);
-                const on = !newBudget.adding && newBudget.cat === c;
-                const has = !!data.budgets[c];
-                return (
-                  <Pressable
-                    key={c}
-                    onPress={() => { buzz(); setNewBudget({ cat: c }); }}
-                    style={({ pressed }) => [s.eChip, on && { backgroundColor: 'rgba(255,255,255,0.1)', borderColor: C.ink }, pressed && { transform: [{ scale: 0.9 }] }]}
-                  >
-                    <Text style={{ fontSize: e2 === '✱' ? 15 : 20, color: C.ink2, fontWeight: '700', opacity: has ? 0.45 : 1 }}>{e2}</Text>
-                  </Pressable>
-                );
-              })}
+              {cats.map(([em, c]) => (
+                <Pressable
+                  key={c}
+                  onPress={() => { buzz(); setNewBud({ cat: c }); }}
+                  style={({ pressed }) => [s.eChip, !newBud.mode && newBud.cat === c && { backgroundColor: 'rgba(255,255,255,0.1)', borderColor: C.ink }, pressed && { transform: [{ scale: 0.9 }] }]}
+                >
+                  <Text style={{ fontSize: 20, opacity: data.budgets[c] ? 0.45 : 1 }}>{em}</Text>
+                </Pressable>
+              ))}
               <Pressable
-                onPress={() => { buzz(); setNewBudget({ adding: true, emoji: '', name: '' }); }}
-                style={({ pressed }) => [s.eChip, newBudget.adding && { backgroundColor: 'rgba(255,255,255,0.1)', borderColor: C.ink }, pressed && { transform: [{ scale: 0.9 }] }]}
+                onPress={() => { buzz(); setNewBud({ mode: 'new', emoji: '', name: '' }); }}
+                style={({ pressed }) => [s.eChip, newBud.mode === 'new' && { backgroundColor: 'rgba(255,255,255,0.1)', borderColor: C.ink }, pressed && { transform: [{ scale: 0.9 }] }]}
               >
                 <Text style={{ fontSize: 18, color: C.ink4, fontWeight: '700' }}>＋</Text>
               </Pressable>
             </ScrollView>
-            {newBudget.adding && (
+            {newBud.mode === 'new' && (
               <View>
-                <EmojiPicker selected={newBudget.emoji} onPick={(em) => setNewBudget({ ...newBudget, emoji: em })} />
+                <EmojiPicker selected={newBud.emoji} onPick={(em) => setNewBud({ ...newBud, emoji: em })} />
                 <View style={{ flexDirection: 'row', gap: 12, alignItems: 'flex-end' }}>
-                  <Text style={{ fontSize: 22, width: 36, textAlign: 'center', paddingBottom: 8, color: C.ink4 }}>{newBudget.emoji || '✱'}</Text>
-                  <Field placeholder="new category name" value={newBudget.name} onChangeText={(v) => setNewBudget({ ...newBudget, name: v })} style={{ flex: 1 }} />
+                  <Text style={{ fontSize: 22, width: 36, textAlign: 'center', paddingBottom: 8, color: C.ink4 }}>{newBud.emoji || '✱'}</Text>
+                  <Field placeholder="new category name" value={newBud.name} onChangeText={(v) => setNewBud({ ...newBud, name: v })} style={{ flex: 1 }} />
                 </View>
               </View>
             )}
@@ -403,7 +285,7 @@ export default function PlanScreen() {
         )}
       </AmountSheet>
 
-      {/* ------------------------------------------------ recurring row sheet */}
+      {/* recurring row sheet: ✓ log now / skip once / ⌫ */}
       <Sheet visible={!!recObj} onClose={() => setRecSheet(null)} title={recObj ? '🔁  ' + recName(recObj) : ''} sub={recObj ? recObj.freq : ''}>
         {recObj && (
           <View>
@@ -427,6 +309,30 @@ export default function PlanScreen() {
           </View>
         )}
       </Sheet>
+
+      {/* ＋ recurring: v3 simple — name + amount, monthly spend from next month */}
+      <AmountSheet
+        visible={!!newRec}
+        title="🔁  New recurring"
+        sub="monthly spend — starts next month"
+        cur={data.cur}
+        onClose={() => setNewRec(null)}
+        actions={[{
+          label: 'create', color: '#000', bg: C.ink, flex: 1,
+          onPress: (v) => {
+            const nm = (newRec.name || '').trim();
+            if (v <= 0 || !nm) return;
+            setNewRec(null);
+            const nx = new Date();
+            nx.setMonth(nx.getMonth() + 1);
+            update((d) => {
+              d.recurring.push({ id: uid(), note: nm.charAt(0).toUpperCase() + nm.slice(1), type: 'spent', cat: 'Bills', amt: v, freq: 'monthly', next: fmtDate(nx), auto: false, acc });
+            }, '🔁 ' + nm, true);
+          },
+        }]}
+      >
+        {newRec && <Field placeholder="name" value={newRec.name} onChangeText={(v) => setNewRec({ ...newRec, name: v })} />}
+      </AmountSheet>
     </ScrollView>
   );
 }
@@ -438,13 +344,11 @@ const s = StyleSheet.create({
   bRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
   bTrack: { flex: 1, height: 3, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.08)', overflow: 'hidden' },
   bNums: { color: C.ink2, fontSize: 12.5, fontVariant: ['tabular-nums'], minWidth: 76, textAlign: 'right' },
-  eChip: { width: 42, height: 42, borderRadius: 13, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: 'transparent' },
   leftRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.08)' },
   rRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
   shBtn: { height: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  ghost: { paddingVertical: 12 },
+  ghost: { paddingVertical: 12, flex: 1 },
   ghostText: { color: C.ink3, fontSize: 13, fontWeight: '600' },
   hint: { color: C.ink4, fontSize: 10.5 },
-  tChip: { width: 42, height: 42, borderRadius: 13, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: 'transparent' },
-  fChip: { flex: 1, paddingVertical: 9, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center' },
+  eChip: { width: 42, height: 42, borderRadius: 13, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: 'transparent', backgroundColor: 'rgba(255,255,255,0.04)' },
 });
